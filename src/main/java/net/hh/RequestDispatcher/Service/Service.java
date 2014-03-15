@@ -7,4 +7,5 @@ public abstract class Service {
     public abstract String [] recv();
 
     public abstract void close();
+
 }

@@ -1,6 +1,5 @@
 package net.hh.RequestDispatcher.TransferClasses.TestService;
 
-import net.hh.RequestDispatcher.Service.Service;
 import net.hh.RequestDispatcher.TransferClasses.Request;
 
 public class TestRequest implements Request {
@@ -19,10 +18,6 @@ public class TestRequest implements Request {
     @Override
     public String serialize() {
         return payload;
-    }
-
-    public Class<? extends Service> getServiceType() {
-        return TestService.class;
     }
 
 }

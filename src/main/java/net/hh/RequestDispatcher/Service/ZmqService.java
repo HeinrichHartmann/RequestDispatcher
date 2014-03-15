@@ -7,6 +7,7 @@ import java.util.ArrayList;
 public class ZmqService extends Service {
 
     private static final ZMQ.Context ctx = ZMQ.context(1);
+
     private final ZMQ.Socket socket;
 
     protected String endpoint;
@@ -18,7 +19,7 @@ public class ZmqService extends Service {
     }
 
     /**
-     * Terminate ZMQ Context.
+     * Terminate ZMQ Context.Starting service
      *
      * Need to be called before sockets are closed.
      * Blocking calls return with a ZMQError.
@@ -40,6 +41,10 @@ public class ZmqService extends Service {
     @Override
     public String[] recv() {
         return recvMultipart(socket);
+    }
+
+    public static ZMQ.Poller getPoller(){
+        return ctx.poller();
     }
 
     public ZMQ.Socket getSocket(){
