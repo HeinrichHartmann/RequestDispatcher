@@ -1,4 +1,4 @@
-package com.springapp.mvc.RequestDispatcher.Service;
+package net.hh.RequestDispatcher.Service;
 
 import org.jeromq.ZMQ;
 

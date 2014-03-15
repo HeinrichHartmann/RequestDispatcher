@@ -1,6 +1,6 @@
-package com.springapp.mvc.RequestDispatcher.TransferClasses.TestService;
+package net.hh.RequestDispatcher.TransferClasses.TestService;
 
-import com.springapp.mvc.RequestDispatcher.TransferClasses.Reply;
+import net.hh.RequestDispatcher.TransferClasses.Reply;
 
 public class TestReply implements Reply {
 

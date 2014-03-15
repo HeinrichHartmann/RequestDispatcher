@@ -1,4 +1,4 @@
-package com.springapp.mvc.RequestDispatcher.TransferClasses;
+package net.hh.RequestDispatcher.TransferClasses;
 
 public interface Reply {
 

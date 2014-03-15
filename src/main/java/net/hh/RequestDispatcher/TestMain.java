@@ -1,8 +1,8 @@
-package com.springapp.mvc.RequestDispatcher;
+package net.hh.RequestDispatcher;
 
-import com.springapp.mvc.RequestDispatcher.Service.ZmqService;
-import com.springapp.mvc.RequestDispatcher.TransferClasses.TestService.TestReply;
-import com.springapp.mvc.RequestDispatcher.TransferClasses.TestService.TestRequest;
+import net.hh.RequestDispatcher.Service.ZmqService;
+import net.hh.RequestDispatcher.TransferClasses.TestService.TestReply;
+import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
 
 /**
  * Start dispatcher service to querry echo server

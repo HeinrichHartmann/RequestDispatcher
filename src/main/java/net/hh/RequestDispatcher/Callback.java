@@ -1,6 +1,6 @@
-package com.springapp.mvc.RequestDispatcher;
+package net.hh.RequestDispatcher;
 
-import com.springapp.mvc.RequestDispatcher.TransferClasses.Reply;
+import net.hh.RequestDispatcher.TransferClasses.Reply;
 
 public abstract class Callback<ReplyType extends Reply> {
 

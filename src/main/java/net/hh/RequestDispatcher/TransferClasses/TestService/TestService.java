@@ -1,6 +1,6 @@
-package com.springapp.mvc.RequestDispatcher.TransferClasses.TestService;
+package net.hh.RequestDispatcher.TransferClasses.TestService;
 
-import com.springapp.mvc.RequestDispatcher.Service.ZmqService;
+import net.hh.RequestDispatcher.Service.ZmqService;
 
 /**
  * Created by hartmann on 3/14/14.

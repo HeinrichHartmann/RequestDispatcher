@@ -1,4 +1,4 @@
-package com.springapp.mvc.Server;
+package net.hh.RequestDispatcher.Server;
 
 /**
  * Created by hartmann on 3/13/14.

@@ -1,7 +1,7 @@
-package com.springapp.mvc.RequestDispatcher.TransferClasses.TestService;
+package net.hh.RequestDispatcher.TransferClasses.TestService;
 
-import com.springapp.mvc.RequestDispatcher.Service.Service;
-import com.springapp.mvc.RequestDispatcher.TransferClasses.Request;
+import net.hh.RequestDispatcher.Service.Service;
+import net.hh.RequestDispatcher.TransferClasses.Request;
 
 public class TestRequest implements Request {
 
