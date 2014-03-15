@@ -6,7 +6,6 @@ package net.hh.RequestDispatcher.Server;
 public class EchoServerMain {
     public static void main(String[] args) {
         try {
-
             EchoServer A = new EchoServer("tcp://*:60123", "A");
             A.start();
 
