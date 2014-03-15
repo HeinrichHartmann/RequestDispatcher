@@ -3,8 +3,12 @@ package net.hh.RequestDispatcher;
 import net.hh.RequestDispatcher.Service.Service;
 import net.hh.RequestDispatcher.Service.ZmqService;
 import net.hh.RequestDispatcher.TransferClasses.Request;
+import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
+import org.jeromq.ZMQ;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -12,15 +16,19 @@ import java.util.Map;
  */
 public class Dispatcher {
 
-    public void execute(Request request, Callback callback) {
+    public void execute(Request request, Callback callback){
+
+        execute(inferServiceName(request), request, callback);
+
+    }
+
+    public void execute(String serviceName, Request request, Callback callback) {
 
         int id = generateCallbackId(callback);
 
         registerCallbackObject(id, callback);
 
-        Service service = getServiceProvider(request.getClass());
-
-        service.send(encodeMessage(id, request));
+        getServiceProvider(serviceName).send(encodeMessage(id, request));
 
     }
 
@@ -41,37 +49,68 @@ public class Dispatcher {
 
     }
 
+
     public void terminate() {
-        ZmqService.term();
 
         for (Service s : serviceInstances.values()){
             s.close();
         }
+        ZmqService.term();
     }
 
+    //////////////////// POLLING //////////////////////////
+
+    private final ZMQ.Poller poller = ZmqService.getPoller();
+    private final List<Service> pollServiceList = new ArrayList<Service>();
 
     private String[] pollMessage() {
-        // TODO: Add prper polling
-        for (Service s : serviceInstances.values()){
-            return s.recv();
+        poller.poll();
+        for (int i = 0; i < pollServiceList.size(); i++){
+            if (poller.pollin(i)){
+                return pollServiceList.get(i).recv();
+            }
         }
-        return null;
+        throw new IllegalStateException("No Message recieved");
+    }
+
+    private void registerPoller(ZmqService service){
+        poller.register(service.getSocket(), ZMQ.POLLIN);
+        pollServiceList.add(service);
     }
 
 
     ////////////////// SERVICE ADMINISTRATION //////////////////
 
-    private final HashMap<Class, Service> serviceInstances = new HashMap<Class, Service>();
+    private final HashMap<String, Service> serviceInstances = new HashMap<String, Service>();
 
-    public void registerServiceProvider(Class<? extends Request> requestType, Service service) {
-        serviceInstances.put(requestType, service);
+    public void registerServiceProvider(String serviceName, ZmqService service) {
+        if (serviceInstances.containsKey(serviceName)) {
+            throw new IllegalArgumentException("Service Already registered");
+        }
+
+        serviceInstances.put(serviceName, service);
+
+        registerPoller(service);
     }
 
-    private Service getServiceProvider(final Class<? extends Request> requestType) {
-        if (! serviceInstances.containsKey(requestType)) {
-            throw new IllegalArgumentException("Request type not registered.");
+    public Service getServiceProvider(final String serviceName){
+        if (! serviceInstances.containsKey(serviceName)){
+            throw new IllegalArgumentException("No service provider registered for name " + serviceName);
         }
-        return serviceInstances.get(requestType);
+        return serviceInstances.get(serviceName);
+    }
+
+
+    //////////////// DEFAULT SERVICE RESOLUTION ////////////////////
+
+    private final Map<Class, String> defaultService = new HashMap<Class, String>();
+
+    public void setDefaultService(Class<TestRequest> testRequestClass, String test) {
+        defaultService.put(testRequestClass, test);
+    }
+
+    private String inferServiceName(final Request request) {
+        return defaultService.get(request.getClass());
     }
 
     ///////////// Callback Object Storage ////////////
