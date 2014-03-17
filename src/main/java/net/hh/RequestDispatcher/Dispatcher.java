@@ -90,11 +90,13 @@ public class Dispatcher {
                 }
             }
             catch (TimeoutException e) {
-                for (Integer id:pendingCallbacks.keySet()){
-                    Callback c = pendingCallbacks.get(id);
+
+                for (Callback c: pendingCallbacks.values()){
                     c.processOnTimeout(e.getMessage());
                 }
+
                 pendingCallbacks.clear();
+
                 System.out.println("SERVER: timeout on the server");
             }
         }
@@ -120,8 +122,10 @@ public class Dispatcher {
     private final List<Service> pollServiceList = new ArrayList<Service>();
 
     private String[] pollMessage() throws TimeoutException {
+
         // timeout in milliseconds
         int numObjects = poller.poll(timeout - (System.currentTimeMillis() - startTime));
+
         if (numObjects > 0){
             for (int i = 0; i < pollServiceList.size(); i++){
                 if (poller.pollin(i)){
