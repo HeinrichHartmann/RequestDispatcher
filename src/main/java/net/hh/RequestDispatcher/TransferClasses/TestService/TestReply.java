@@ -6,12 +6,10 @@ public class TestReply implements Reply {
 
     private String payload;
 
-    @Override
     public void fill(String message) {
         payload = message;
     }
 
-    @Override
     public String serialize() {
         return payload;
     }

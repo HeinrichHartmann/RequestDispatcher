@@ -1,10 +1,10 @@
 package net.hh.RequestDispatcher.Service;
 
-import org.jeromq.ZMQ;
-
 import java.util.ArrayList;
 
-public class ZmqService extends Service {
+import org.jeromq.ZMQ;
+
+public class ZmqService implements Service {
 
     private static final ZMQ.Context ctx = ZMQ.context(1);
 
@@ -14,15 +14,16 @@ public class ZmqService extends Service {
 
     protected String endpoint;
 
-    public ZmqService(String endpoint){
+    public ZmqService(
+            String endpoint) {
         this.endpoint = endpoint;
-        this.socket   = ctx.socket(ZMQ.DEALER);
-        this.socket.connect(endpoint);
+        socket = ctx.socket(ZMQ.DEALER);
+        socket.connect(endpoint);
     }
 
     /**
      * Terminate ZMQ Context.Starting service
-     *
+     * 
      * Need to be called before sockets are closed.
      * Blocking calls return with a ZMQError.
      */
@@ -30,26 +31,23 @@ public class ZmqService extends Service {
         ctx.term();
     }
 
-    @Override
-    public void close(){
-        this.socket.close();
+    public void close() {
+        socket.close();
     }
 
-    @Override
     public void send(String[] m) {
         sendMultipart(socket, m);
     }
 
-    @Override
     public String[] recv() {
         return recvMultipart(socket);
     }
 
-    public static ZMQ.Poller getPoller(){
+    public static ZMQ.Poller getPoller() {
         return ctx.poller();
     }
 
-    public ZMQ.Socket getSocket(){
+    public ZMQ.Socket getSocket() {
         return socket;
     }
 
@@ -62,7 +60,7 @@ public class ZmqService extends Service {
         socket.send(new byte[0], ZMQ.SNDMORE);
 
         int i = 0;
-        for ( ; i < multipart.length - 1; i++){
+        for (; i < multipart.length - 1; i++) {
             System.out.println("Sending " + multipart[i]);
             socket.sendMore(multipart[i]);
         }
@@ -82,8 +80,8 @@ public class ZmqService extends Service {
             buffer.add(socket.recvStr());
         }
 
-        String [] out = new String[buffer.size()];
-        for (int i = 0; i < buffer.size(); i++){
+        String[] out = new String[buffer.size()];
+        for (int i = 0; i < buffer.size(); i++) {
             out[i] = buffer.get(i);
             System.out.println("Received " + buffer.get(i));
         }

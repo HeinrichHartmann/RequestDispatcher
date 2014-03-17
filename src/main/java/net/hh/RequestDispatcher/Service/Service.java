@@ -1,11 +1,17 @@
 package net.hh.RequestDispatcher.Service;
 
-public abstract class Service {
+/**
+ * The service interface for zmq socket services
+ * 
+ * @author heinrichhartmann
+ * 
+ */
+public interface Service {
 
-    public abstract void send(String[] m );
+    public void send(String[] m);
 
-    public abstract String [] recv();
+    public String[] recv();
 
-    public abstract void close();
+    public void close();
 
 }
