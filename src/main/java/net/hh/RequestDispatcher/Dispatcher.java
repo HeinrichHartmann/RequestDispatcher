@@ -2,6 +2,7 @@ package net.hh.RequestDispatcher;
 
 import net.hh.RequestDispatcher.Service.Service;
 import net.hh.RequestDispatcher.Service.ZmqService;
+import net.hh.RequestDispatcher.TransferClasses.Reply;
 import net.hh.RequestDispatcher.TransferClasses.Request;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
 
@@ -78,20 +79,15 @@ public class Dispatcher {
 
             try {
                 String [] message = pollMessage();
-                if (message!=null){
-                    
-                    int id      = parseId(message);
-                    String body = parseBody(message);
-        
-                    Callback c = pullCallbackObject(id);
-        
-                    c.processBody(body);
-
-                }
+                int id      = parseId(message);
+                String body = parseBody(message);
+    
+                Callback c = pullCallbackObject(id);
+    
+                c.processBody(body);
             }
             catch (TimeoutException e) {
-                for (Integer id:pendingCallbacks.keySet()){
-                    Callback c = pendingCallbacks.get(id);
+                for (Callback<Reply> c:pendingCallbacks.values()){
                     c.processOnTimeout(e.getMessage());
                 }
                 pendingCallbacks.clear();
@@ -130,6 +126,9 @@ public class Dispatcher {
             }
         }
         else {
+            for (Service s: serviceInstances.values()){
+                poller.unregister(((ZmqService)s).getSocket());
+            }
             throw new TimeoutException(timeout + " ms have passed since the first request was put on the wire");
         }
         throw new IllegalStateException("No Message recieved");

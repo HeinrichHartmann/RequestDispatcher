@@ -79,10 +79,10 @@ public class TestMain {
             @Override
             public void onSuccess(TestReply reply) {
                 // System.out.println("OUT-A " + reply.serialize());
-                responses.add("A REQUEST");
+                responses.add("\n A REQUEST successfull\n");
             }
             public void onTimeOut(String errorMessage) {
-                responses.add(" A timeouted..." + errorMessage + "\n"); 
+                responses.add("\n A timeouted..." + errorMessage + "\n"); 
              }
             
         });
@@ -95,11 +95,11 @@ public class TestMain {
             @Override
             public void onSuccess(TestReply reply) {
                 // System.out.println("OUT-B " + reply.serialize());
-                responses.add("B REQUEST");
+                responses.add("\n B REQUEST successfull\n");
             }
 
             public void onTimeOut(String errorMessage) {
-               responses.add(" B timeouted..." + errorMessage); 
+               responses.add("\n B timeouted..." + errorMessage); 
             }
         });
 
