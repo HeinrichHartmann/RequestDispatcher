@@ -15,11 +15,10 @@ public class TestMain {
 
     public static void main(String[] args) {
 
-        for(int i = 0; i < 30; i++){
+        for(int i = 0; i < 3; i++){
             final int i_copy = i;
 
             new Thread(new Runnable() {
-            @Override
             public void run() {
                 issueRequests(i_copy);
             }
@@ -40,7 +39,8 @@ public class TestMain {
         System.out.println("Starting service");
 
         final Dispatcher dp = new Dispatcher();
-
+        dp.setDefaultTimeout(100);
+        
         dp.registerServiceProvider("TEST-A", new ZmqService("tcp://127.0.0.1:60124"));
         dp.setDefaultService(TestRequest.class, "TEST-A");
 
@@ -103,7 +103,6 @@ public class TestMain {
         }
 
         dp.close();
-
     }
 
 }
