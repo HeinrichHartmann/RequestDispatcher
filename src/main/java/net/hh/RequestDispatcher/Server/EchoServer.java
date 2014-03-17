@@ -11,9 +11,12 @@ public class EchoServer {
     private static final ZMQ.Context ctx = ZMQ.context(1);
 
     private final String responsePrefix;
+
     private final String endpoint;
 
-    public EchoServer(String endpoint, String responsePrefix){
+    public EchoServer(
+            String endpoint,
+            String responsePrefix) {
         this.responsePrefix = responsePrefix;
         this.endpoint = endpoint;
     }
@@ -27,11 +30,13 @@ public class EchoServer {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 String m = socket.recvStr();
-                if (m == null) { continue; }
+                if (m == null) {
+                    continue;
+                }
 
                 socket.send(responsePrefix + ":" + m);
             } catch (ZMQException e) {
-                if (e.getErrorCode () == ZMQ.Error.ETERM.getCode ()) {
+                if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()) {
                     break;
                 }
             }
@@ -43,7 +48,7 @@ public class EchoServer {
     }
 
     private Thread thread = new Thread(new Runnable() {
-        @Override
+
         public void run() {
             serve();
         }
@@ -53,7 +58,7 @@ public class EchoServer {
         thread.start();
     }
 
-    public void stop(){
+    public void stop() {
         try {
             thread.interrupt();
             thread.join();
@@ -62,7 +67,7 @@ public class EchoServer {
         }
     }
 
-    public static void term(){
+    public static void term() {
         ctx.term();
     }
 

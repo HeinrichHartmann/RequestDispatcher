@@ -2,3 +2,5 @@
 .idea
 *.jar
 
+/bin
+/target
