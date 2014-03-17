@@ -43,7 +43,7 @@ customized for the external service.
 * Single threaded callback execution
 * Thread savety. (i.e. usable in multithreaded environments.
 
-### Components:
+### Components
 
 * Request/Reply interfaces. To be implemented by new services and
   instanciated for requests. The objects are serialized and sent
@@ -53,3 +53,7 @@ customized for the external service.
 * Dispatcher Class. Orchestrages serivces and callback execution in a
   synchronus event loop.
 * ZMQ Network Service library. Handles socket communication and polling.
+
+### Control Flow 
+
+![Image of control flow](https://raw.github.com/HeinrichHartmann/RequestDispatcher/master/img/DispatcherControlFlow.png "Request dispatcher control flow")
