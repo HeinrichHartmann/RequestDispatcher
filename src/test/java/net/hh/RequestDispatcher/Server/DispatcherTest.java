@@ -17,7 +17,7 @@ public class DispatcherTest {
 
     @BeforeClass
     public static void setupMockServer() throws Exception {
-        echoServer = new EchoServer(echoEndpoint, "");
+        echoServer = new EchoServer(echoEndpoint);
         echoServer.start();
     }
 

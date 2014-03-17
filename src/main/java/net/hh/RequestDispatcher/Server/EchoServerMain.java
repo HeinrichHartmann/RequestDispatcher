@@ -8,7 +8,7 @@ public class EchoServerMain {
     public static void main(String[] args) {
         try {
             System.out.println("Starting echo server.");
-            EchoServer A = new EchoServer("tcp://*:60126", "A");
+            EchoServer A = new EchoServer("tcp://*:60126");
             A.start();
 
             // Give the server some time to start
