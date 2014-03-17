@@ -23,7 +23,7 @@ import java.util.concurrent.TimeoutException;
  * The dispatcher will block until all responses are received or the timeout
  * value is hit.   
  * 
- * @author hartman, rpickhardt
+ * @author hartmann, rpickhardt
  */
 public class Dispatcher {
 

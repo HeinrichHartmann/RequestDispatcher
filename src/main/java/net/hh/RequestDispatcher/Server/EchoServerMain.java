@@ -7,17 +7,17 @@ public class EchoServerMain {
 
     public static void main(String[] args) {
         try {
-            EchoServer A = new EchoServer("tcp://*:60124", "A");
+            System.out.println("Starting echo server.");
+            EchoServer A = new EchoServer("tcp://*:60126", "A");
             A.start();
 
             // Give the server some time to start
-            Thread.sleep(1 * 1000);
+            Thread.sleep(3 * 1000);
 
             // Need to call ctx.term first
             // https://github.com/zeromq/jeromq/issues/116
-            //            EchoServer.term();
-            A.join();
-
+            EchoServer.term();
+            A.stop();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
