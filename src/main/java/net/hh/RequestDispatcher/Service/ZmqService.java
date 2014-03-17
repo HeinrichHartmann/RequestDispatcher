@@ -8,6 +8,8 @@ public class ZmqService implements Service {
 
     private static final ZMQ.Context ctx = ZMQ.context(1);
 
+    private static int threads = 0;
+
     private final ZMQ.Socket socket;
 
     protected String endpoint;
@@ -51,10 +53,8 @@ public class ZmqService implements Service {
 
     // HELPER METHODS
 
-    private void sendMultipart(ZMQ.Socket socket, String[] multipart) {
-        if (multipart.length == 0) {
-            return;
-        }
+    private synchronized void sendMultipart(ZMQ.Socket socket, String[] multipart) {
+        if (multipart.length == 0) return;
 
         // Empty Request Envelope
         socket.send(new byte[0], ZMQ.SNDMORE);
@@ -69,7 +69,7 @@ public class ZmqService implements Service {
         socket.send(multipart[i]);
     }
 
-    private String[] recvMultipart(ZMQ.Socket socket) {
+    private synchronized String[] recvMultipart(ZMQ.Socket socket) {
         ArrayList<String> buffer = new ArrayList<String>(1);
 
         // Discard Reply Envelope

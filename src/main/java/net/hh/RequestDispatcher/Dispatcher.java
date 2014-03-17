@@ -50,12 +50,12 @@ public class Dispatcher {
     }
 
 
-    public void terminate() {
+    public void close() {
 
         for (Service s : serviceInstances.values()){
             s.close();
         }
-        ZmqService.term();
+
     }
 
     //////////////////// POLLING //////////////////////////
@@ -135,6 +135,7 @@ public class Dispatcher {
     }
 
     private int generateCallbackId(Callback callback) {
+        // TODO: Make unique
         return callback.hashCode();
     }
 
