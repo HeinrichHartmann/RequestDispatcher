@@ -13,9 +13,28 @@ import java.util.Map;
 
 /**
  * Asynchronus Request Dispatcher Class
+ * 
+ * This class can send asynchronous requests to ZMQ Sockets. 
+ * By default this class will not timeout but wait forever for all responses 
+ * to come in. If this is not wellcome one can set a timeout parameter
+ * 
+ * The dispatcher will block until all responses are received or the timeout
+ * value is hit.   
+ * 
+ * @author hartman, rpickhardt
  */
 public class Dispatcher {
 
+    /////////////// timout
+    private int timeout;
+    private long startTime;
+
+    
+    public Dispatcher(){
+        this.timeout = Integer.MIN_VALUE;
+        startTime = -1;
+    }
+    
     public void execute(Request request, Callback callback){
 
         execute(inferServiceName(request), request, callback);
@@ -23,7 +42,8 @@ public class Dispatcher {
     }
 
     public void execute(String serviceName, Request request, Callback callback) {
-
+        resetStartTime();
+        
         int id = generateCallbackId(callback);
 
         registerCallbackObject(id, callback);
@@ -38,14 +58,26 @@ public class Dispatcher {
 
             String [] message = pollMessage();
 
-            int id      = parseId(message);
-            String body = parseBody(message);
+            if (message!=null){
+                
+                int id      = parseId(message);
+                String body = parseBody(message);
+    
+                Callback c = pullCallbackObject(id);
+    
+                c.processBody(body);
 
-            Callback c = pullCallbackObject(id);
-
-            c.processBody(body);
-
+            }
+            else { // timed out.
+                pendingCallbacks.clear();
+                System.out.println("timeout");
+            }
+            
         }
+        
+        // reset the start Time
+        // TODO: need setter method
+        startTime = -1;
 
     }
 
@@ -64,11 +96,17 @@ public class Dispatcher {
     private final List<Service> pollServiceList = new ArrayList<Service>();
 
     private String[] pollMessage() {
-        poller.poll();
-        for (int i = 0; i < pollServiceList.size(); i++){
-            if (poller.pollin(i)){
-                return pollServiceList.get(i).recv();
+        // timeout in milliseconds
+        int numObjects = poller.poll(timeout - (System.currentTimeMillis() - startTime));
+        if (numObjects > 0){
+            for (int i = 0; i < pollServiceList.size(); i++){
+                if (poller.pollin(i)){
+                    return pollServiceList.get(i).recv();
+                }
             }
+        }
+        else {
+            return null;
         }
         throw new IllegalStateException("No Message recieved");
     }
@@ -165,4 +203,29 @@ public class Dispatcher {
         return message[1];
     }
 
+    ////////////// TIMEOUT ///////
+    /**
+     * sets the timeout the dispatcher to wait for all pending requests after 
+     * the first request is sent to the wire to time milliseconds
+     * 
+     * @param timeout in milliseconds
+     * @author rpickhardt
+     */
+    void setDefaultTimeout(int timeout){
+        this.timeout = timeout;
+    }
+
+    /**
+     * Checks sets the start time for global requests to the current time stamp
+     * it it is not yet set. 
+     * 
+     * @author rpickhardt
+     */
+    private void resetStartTime() {
+       if (startTime < 0){
+           startTime = System.currentTimeMillis();
+       }
+    }
+
+    
 }
