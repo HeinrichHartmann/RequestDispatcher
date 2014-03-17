@@ -126,9 +126,6 @@ public class Dispatcher {
             }
         }
         else {
-            for (Service s: serviceInstances.values()){
-                poller.unregister(((ZmqService)s).getSocket());
-            }
             throw new TimeoutException(timeout + " ms have passed since the first request was put on the wire");
         }
         throw new IllegalStateException("No Message recieved");
