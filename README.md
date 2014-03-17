@@ -8,7 +8,7 @@ The library targets use inside Java Servlet Containers, like Apache
 Tomcat, which expose a multithreaded environment.
 
 
-    // setup communication sockets
+    // create and open sockets and register services at dispatcher
     Dispatcher dispatcher = new Dispatcher();
     dispatcher.registerService(serviceID, new ZmqService(serviceEndpoint))
 
@@ -26,7 +26,7 @@ Tomcat, which expose a multithreaded environment.
     // execute another request
     dispatcher.execute(otherRequest, otherCallback);
 
-    // listen to messages and execute callbacks
+    // listen for messages and execute callbacks
     dispatcher.gatherResults()
 
     // cleanup
