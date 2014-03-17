@@ -15,7 +15,7 @@ public class TestMain {
 
     public static void main(String[] args) {
 
-        for(int i = 0; i < 3; i++){
+        for(int i = 0; i < 1; i++){
             final int i_copy = i;
 
             new Thread(new Runnable() {
@@ -34,17 +34,17 @@ public class TestMain {
         ZmqService.term();
     }
 
-    public static void issueRequests(int id) {
+    public static void issueRequests(final int id) {
 
         System.out.println("Starting service");
 
         final Dispatcher dp = new Dispatcher();
-        dp.setDefaultTimeout(100);
+        dp.setDefaultTimeout(1000);
         
         dp.registerServiceProvider("TEST-A", new ZmqService("tcp://127.0.0.1:60124"));
-        dp.setDefaultService(TestRequest.class, "TEST-A");
-
         dp.registerServiceProvider("TEST-B", new ZmqService("tcp://127.0.0.1:60125"));
+
+        dp.setDefaultService(TestRequest.class, "TEST-A");
 
         /////////// BUSINESS LOGIC ///////////////
 
@@ -81,6 +81,10 @@ public class TestMain {
                 // System.out.println("OUT-A " + reply.serialize());
                 responses.add("A REQUEST");
             }
+            public void onTimeOut(String errorMessage) {
+                responses.add(" A timeouted..." + errorMessage + "\n"); 
+             }
+            
         });
 
         dp.execute(
@@ -93,13 +97,17 @@ public class TestMain {
                 // System.out.println("OUT-B " + reply.serialize());
                 responses.add("B REQUEST");
             }
+
+            public void onTimeOut(String errorMessage) {
+               responses.add(" B timeouted..." + errorMessage); 
+            }
         });
 
         dp.gatherResults();
 
-        System.out.println("RESPONSES");
+        System.out.println("Thread- "+id+"RESPONSES");
         for(String rep: responses){
-            System.out.print(rep);
+            System.out.print("Thread- "+id+rep);
         }
 
         dp.close();

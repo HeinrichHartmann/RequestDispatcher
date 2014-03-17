@@ -4,12 +4,14 @@ import net.hh.RequestDispatcher.Service.Service;
 import net.hh.RequestDispatcher.Service.ZmqService;
 import net.hh.RequestDispatcher.TransferClasses.Request;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
+
 import org.jeromq.ZMQ;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Asynchronus Request Dispatcher Class
@@ -41,38 +43,60 @@ public class Dispatcher {
 
     }
 
+    /**
+     * sends a Request to the wire without blocking the thread until the Remote
+     * server provides a response.
+     *  
+     * The Response will be processed in the callback which has to be implented.
+     *  
+     * @param serviceName
+     * @param request
+     * @param callback
+     */
     public void execute(String serviceName, Request request, Callback callback) {
-        resetStartTime();
+        initStartTime();
         
         int id = generateCallbackId(callback);
-
+        
+        requestInstances.put(id,serviceName);
+        
         registerCallbackObject(id, callback);
 
         getServiceProvider(serviceName).send(encodeMessage(id, request));
 
     }
 
+    /**
+     * Blocks until all responses of all requests are delivered. 
+     * 
+     * If no blocking behavior is desired then use the setDefaultTimeout(int) method
+     *  
+     */
     public void gatherResults(){
 
         while (hasPendingCallbacks()){
 
-            String [] message = pollMessage();
+            try {
+                String [] message = pollMessage();
+                if (message!=null){
+                    
+                    int id      = parseId(message);
+                    String body = parseBody(message);
+        
+                    Callback c = pullCallbackObject(id);
+        
+                    c.processBody(body);
 
-            if (message!=null){
-                
-                int id      = parseId(message);
-                String body = parseBody(message);
-    
-                Callback c = pullCallbackObject(id);
-    
-                c.processBody(body);
-
+                }
             }
-            else { // timed out.
+            catch (TimeoutException e) {
+                for (Integer id:pendingCallbacks.keySet()){
+                    Callback c = pendingCallbacks.get(id);
+                    c.processOnTimeout(e.getMessage());
+                }
                 pendingCallbacks.clear();
-                System.out.println("timeout");
+                System.out.println("SERVER: timeout on the server");
             }
-            
         }
         
         // reset the start Time
@@ -95,7 +119,7 @@ public class Dispatcher {
     private final ZMQ.Poller poller = ZmqService.getPoller();
     private final List<Service> pollServiceList = new ArrayList<Service>();
 
-    private String[] pollMessage() {
+    private String[] pollMessage() throws TimeoutException {
         // timeout in milliseconds
         int numObjects = poller.poll(timeout - (System.currentTimeMillis() - startTime));
         if (numObjects > 0){
@@ -106,7 +130,7 @@ public class Dispatcher {
             }
         }
         else {
-            return null;
+            throw new TimeoutException(timeout + " ms have passed since the first request was put on the wire");
         }
         throw new IllegalStateException("No Message recieved");
     }
@@ -120,6 +144,7 @@ public class Dispatcher {
     ////////////////// SERVICE ADMINISTRATION //////////////////
 
     private final HashMap<String, Service> serviceInstances = new HashMap<String, Service>();
+    private final HashMap<Integer, String> requestInstances = new HashMap<Integer, String>();
 
     public void registerServiceProvider(String serviceName, ZmqService service) {
         if (serviceInstances.containsKey(serviceName)) {
@@ -221,7 +246,7 @@ public class Dispatcher {
      * 
      * @author rpickhardt
      */
-    private void resetStartTime() {
+    private void initStartTime() {
        if (startTime < 0){
            startTime = System.currentTimeMillis();
        }
