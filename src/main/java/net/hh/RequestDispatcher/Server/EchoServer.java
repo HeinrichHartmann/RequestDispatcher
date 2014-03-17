@@ -6,29 +6,34 @@ import org.jeromq.ZMQException;
 import org.jeromq.ZMsg;
 
 /**
- * Mock ZMQ ReqReply Server
+ * ZMQ ReqReply Server that returns the [multipart] message that was received to the sender.
  */
 public class EchoServer {
 
     private static final ZMQ.Context ctx = ZMQ.context(1);
 
-    private final String responsePrefix;
-
     private final String endpoint;
 
     private int duration;
 
-    public EchoServer(
-            String endpoint,
-            String responsePrefix) {
-        this.responsePrefix = responsePrefix;
+    /**
+     * @param endpoint to listen on
+     */
+    public EchoServer(String endpoint) {
         this.endpoint = endpoint;
     }
 
+    /**
+     * Set Thread.sleep() delay for each message
+     * @param duration
+     */
     public void setDuration(int duration){
         this.duration = duration;
     };
 
+    /**
+     * Start Request/Reply Loop
+     */
     public void serve() {
         System.out.println("Starting echo server on " + endpoint);
         System.out.println("Test with: zmqdump REQ \"" + endpoint+ "\"");
@@ -70,8 +75,8 @@ public class EchoServer {
         socket.close();
     }
 
+    /////////////// THREAD HANDLING /////////////////////
     private Thread thread = new Thread(new Runnable() {
-
         public void run() {
             serve();
         }
