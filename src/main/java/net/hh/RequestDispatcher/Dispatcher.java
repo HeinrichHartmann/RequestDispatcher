@@ -6,85 +6,81 @@ import net.hh.RequestDispatcher.TransferClasses.Request;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
 import org.jeromq.ZMQ;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 /**
  * Asynchronus Request Dispatcher Class
  * 
- * This class can send asynchronous requests to ZMQ Sockets. 
- * By default this class will not timeout but wait forever for all responses 
- * to come in. If this is not wellcome one can set a timeout parameter
- * 
- * The dispatcher will block until all responses are received or the timeout
- * value is hit.   
- * 
+ * New requests can be issued with the execute() methods.
+ * Replys are collected on the gatherResults() method.
+ *
  * @author hartmann, rpickhardt
  */
 public class Dispatcher {
 
-    /////////////// timout
-    private int timeout;
-    private long startTime;
+    private static int oo = Integer.MAX_VALUE;
 
-    
-    public Dispatcher(){
-        this.timeout = Integer.MIN_VALUE;
-        startTime = -1;
-    }
-    
     public void execute(Request request, Callback callback){
-
         execute(inferServiceName(request), request, callback);
-
     }
 
     /**
-     * sends a Request to the wire without blocking the thread until the Remote
-     * server provides a response.
-     *  
+     * Sends a non-blocking Request to the service specified by serviceName.
      * The Response will be processed in the callback which has to be implented.
-     *  
-     * @param serviceName
-     * @param request
+     *
+     * @param serviceName   service identifier. Has to be registered before usage.
+     * @param request       request object that will be serialized and passed to the server
      * @param callback
      */
     public void execute(String serviceName, Request request, Callback callback) {
-        initStartTime();
-        
+
         int id = generateCallbackId(callback);
-        
-        requestInstances.put(id,serviceName);
-        
+
         registerCallbackObject(id, callback);
 
         getServiceProvider(serviceName).send(encodeMessage(id, request));
 
     }
 
+
     /**
-     * Blocks until all responses of all requests are delivered. 
-     * 
-     * If no blocking behavior is desired then use the setDefaultTimeout(int) method
-     *  
+     * Listens on sockets and executes appropriate callbacks.
+     * Blocks until all Replies are received.
      */
-    public void gatherResults(){
+    public void gatherResults() {
+        // wait forever
+        gatherResults(oo);
+    }
+
+    /**
+     * Listens on sockets and executes appropriate callbacks.
+     * Blocks untial all Replies are received or timeout is hit.
+     *
+     * @param timeout maximal time to wait for replies
+     */
+    public void gatherResults(int timeout){
+
+        Timer timer = new Timer(timeout);
+        timer.start();
 
         while (hasPendingCallbacks()){
 
             try {
-                String [] message = pollMessage();
+
+                String [] message = pollMessage(timer.timeLeft());
+
                 int id      = parseId(message);
                 String body = parseBody(message);
     
                 Callback c = pullCallbackObject(id);
     
                 c.processBody(body);
+
             }
+
             catch (TimeoutException e) {
+
                 for (Callback c: pendingCallbacks.values()){
                     c.processOnTimeout(e.getMessage());
                 }
@@ -94,13 +90,7 @@ public class Dispatcher {
                 System.out.println("SERVER: timeout on the server");
             }
         }
-        
-        // reset the start Time
-        // TODO: need setter method
-        startTime = -1;
-
     }
-
 
     public void close() {
 
@@ -115,25 +105,30 @@ public class Dispatcher {
     private final ZMQ.Poller poller = ZmqService.getPoller();
     private final List<Service> pollServiceList = new ArrayList<Service>();
 
-    private String[] pollMessage() throws TimeoutException {
+    /**
+     * Recieves multipart messages from all open sockets as String [].
+     *
+     * @param timeout               maximal time to wait for messages
+     *                              in milliseconds
+     * @return multipartMessage
+     * @throws TimeoutException     if timeout exceeded
+     */
+    private String[] pollMessage(int timeout) throws TimeoutException {
 
-        // timeout in milliseconds
-        int numObjects = poller.poll(timeout - (System.currentTimeMillis() - startTime));
+        int messageCount = poller.poll(timeout);
 
-        if (numObjects > 0){
+        if (messageCount > 0){
+            // message received
             for (int i = 0; i < pollServiceList.size(); i++){
                 if (poller.pollin(i)){
                     return pollServiceList.get(i).recv();
                 }
             }
+            throw new IllegalStateException("No message recieved on polling.");
+        } else {
+            // timeout has happend
+            throw new TimeoutException("Request timed out after " + timeout + " milliseconds.");
         }
-        else {
-            for (Service s: serviceInstances.values()){
-                poller.unregister(((ZmqService)s).getSocket());
-            }
-            throw new TimeoutException(timeout + " ms have passed since the first request was put on the wire");
-        }
-        throw new IllegalStateException("No Message recieved");
     }
 
     private void registerPoller(ZmqService service){
@@ -145,7 +140,6 @@ public class Dispatcher {
     ////////////////// SERVICE ADMINISTRATION //////////////////
 
     private final HashMap<String, Service> serviceInstances = new HashMap<String, Service>();
-    private final HashMap<Integer, String> requestInstances = new HashMap<Integer, String>();
 
     public void registerServiceProvider(String serviceName, ZmqService service) {
         if (serviceInstances.containsKey(serviceName)) {
@@ -229,29 +223,25 @@ public class Dispatcher {
         return message[1];
     }
 
-    ////////////// TIMEOUT ///////
-    /**
-     * sets the timeout the dispatcher to wait for all pending requests after 
-     * the first request is sent to the wire to time milliseconds
-     * 
-     * @param timeout in milliseconds
-     * @author rpickhardt
-     */
-    void setDefaultTimeout(int timeout){
-        this.timeout = timeout;
+    ////////////// TIMEOUT ////////////
+
+    // Helper class for managing timeouts
+    private class Timer {
+        long start_time;
+        int timeout;
+
+        Timer(int timeout) {
+            this.timeout = timeout;
+        }
+
+        public void start() {
+            start_time = System.currentTimeMillis();
+        }
+
+        public int timeLeft() {
+            return (int) (timeout - (System.currentTimeMillis() - start_time));
+        }
     }
 
-    /**
-     * Checks sets the start time for global requests to the current time stamp
-     * it it is not yet set. 
-     * 
-     * @author rpickhardt
-     */
-    private void initStartTime() {
-       if (startTime < 0){
-           startTime = System.currentTimeMillis();
-       }
-    }
 
-    
 }

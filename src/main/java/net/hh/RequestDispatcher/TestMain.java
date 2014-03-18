@@ -39,8 +39,7 @@ public class TestMain {
         System.out.println("Starting service");
 
         final Dispatcher dp = new Dispatcher();
-        dp.setDefaultTimeout(1000);
-        
+
         dp.registerServiceProvider("TEST-A", new ZmqService("tcp://127.0.0.1:60124"));
         dp.registerServiceProvider("TEST-B", new ZmqService("tcp://127.0.0.1:60125"));
 
@@ -103,7 +102,7 @@ public class TestMain {
             }
         });
 
-        dp.gatherResults();
+        dp.gatherResults(100);
 
         System.out.println("Thread- "+id+"RESPONSES");
         for(String rep: responses){
