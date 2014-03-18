@@ -1,14 +1,21 @@
 package net.hh.RequestDispatcher.Server;
 
-import org.jeromq.ZFrame;
-import org.jeromq.ZMQ;
-import org.jeromq.ZMQException;
-import org.jeromq.ZMsg;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
+import org.zeromq.ZFrame;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQException;
+import org.zeromq.ZMsg;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * ZMQ ReqReply Server that returns the [multipart] message that was received to the sender.
  */
 public class EchoServer {
+
+    private static final Logger log = Logger.getLogger(EchoServer.class);
 
     private static final ZMQ.Context ctx = ZMQ.context(1);
 
@@ -35,26 +42,25 @@ public class EchoServer {
      * Start Request/Reply Loop
      */
     public void serve() {
-        System.out.println("Starting echo server on " + endpoint);
-        System.out.println("Test with: zmqdump REQ \"" + endpoint+ "\"");
+        log.info("Starting echo server");
+
+        log.debug("Test with: zmqdump REQ \"" + endpoint + "\"");
         ZMQ.Socket socket = ctx.socket(ZMQ.REP);
         socket.bind(endpoint);
+
         // socket.setReceiveTimeOut(5000);
 
         while (!Thread.currentThread().isInterrupted()) {
-            System.out.println("Listening on " + endpoint);
+            log.info("Listening on " + endpoint);
 
             try {
+
                 ZMsg msg = ZMsg.recvMsg(socket);
 
-                System.out.print("Received: | ");
-                for (ZFrame frame : msg){
-                    System.out.print(frame.toString() + " | ");
-                }
-                System.out.println("");
+                log.info("Received Message " + printMsg(msg));
 
                 if (msg == null) {
-                    continue;
+                    break;
                 }
 
                 Thread.sleep(duration);
@@ -73,6 +79,16 @@ public class EchoServer {
 
         System.out.println("Closing sockets");
         socket.close();
+    }
+
+    private String printMsg(ZMsg msg) {
+        List<String> out = new ArrayList<String>();
+
+        for (ZFrame frame : msg){
+            out.add(frame.toString());
+        }
+
+        return "[" + StringUtils.join(out, ",") + "]";
     }
 
     /////////////// THREAD HANDLING /////////////////////

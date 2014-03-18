@@ -15,7 +15,7 @@ public class EchoServerMain {
             Thread.sleep(3 * 1000);
 
             // Need to call ctx.term first
-            // https://github.com/zeromq/jeromq/issues/116
+            // https://github.com/zeromq/zeromq/issues/116
             EchoServer.term();
             A.stop();
         } catch (InterruptedException e) {

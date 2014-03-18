@@ -5,6 +5,7 @@ import net.hh.RequestDispatcher.Dispatcher;
 import net.hh.RequestDispatcher.Service.ZmqService;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestReply;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
+import org.apache.log4j.BasicConfigurator;
 import org.junit.*;
 
 /**
@@ -12,13 +13,18 @@ import org.junit.*;
  */
 public class DispatcherTestTimeout {
 
+    private static int DURATION = 1000;
+    private static int GRACE = 100;
+
     static EchoServer echoServer;
     static String echoEndpoint = "tcp://127.0.0.1:60123";
 
     @BeforeClass
     public static void setupMockServer() throws Exception {
+        BasicConfigurator.configure();
+
         echoServer = new EchoServer(echoEndpoint);
-        echoServer.setDuration(100);
+        echoServer.setDuration(DURATION);
         echoServer.start();
     }
 
@@ -45,16 +51,17 @@ public class DispatcherTestTimeout {
         dp.close(); // close sockets
     }
 
-    private final String PAYLOAD = "HI";
     private final String TIMEOUT_MSG = "TIMEOUT";
 
-    @Test
+    // @Test
     public void testTimeOut() throws Exception {
+
         final String[] answer = new String[1];
-        dp.execute(new TestRequest(PAYLOAD), new Callback<TestReply>(new TestReply()) {
+
+        dp.execute(new TestRequest(), new Callback<TestReply>(new TestReply()) {
             @Override
             public void onSuccess(TestReply reply) {
-                answer[0] = reply.serialize();
+                throw new RuntimeException("Not Timed out");
             }
 
             @Override
@@ -64,7 +71,8 @@ public class DispatcherTestTimeout {
         });
 
         // set too short timeout
-        dp.gatherResults(50);
+        dp.gatherResults(1);
+
         Assert.assertEquals(TIMEOUT_MSG, answer[0]);
     }
 
@@ -72,20 +80,21 @@ public class DispatcherTestTimeout {
     @Test
     public void testTimeOk() throws Exception {
         final String[] answer = new String[1];
-        dp.execute(new TestRequest(PAYLOAD), new Callback<TestReply>(new TestReply()) {
+
+        dp.execute(new TestRequest(), new Callback<TestReply>(new TestReply()) {
             @Override
             public void onSuccess(TestReply reply) {
-                answer[0] = reply.serialize();
+                answer[0] = "OK";
             }
 
             @Override
             public void onTimeOut(String errorMessage) {
-                answer[0] = TIMEOUT_MSG;
+                throw new RuntimeException("Timed Out");
             }
         });
 
-        // set too short timeout
-        dp.gatherResults(200);
-        Assert.assertEquals(PAYLOAD, answer[0]);
+        // set graceful timeout
+        dp.gatherResults(DURATION + GRACE);
+        Assert.assertEquals("OK", answer[0]);
     }
 }

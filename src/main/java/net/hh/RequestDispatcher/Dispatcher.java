@@ -4,7 +4,8 @@ import net.hh.RequestDispatcher.Service.Service;
 import net.hh.RequestDispatcher.Service.ZmqService;
 import net.hh.RequestDispatcher.TransferClasses.Request;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
-import org.jeromq.ZMQ;
+import org.apache.log4j.Logger;
+import org.zeromq.ZMQ;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeoutException;
  * @author hartmann, rpickhardt
  */
 public class Dispatcher {
+    Logger log = Logger.getLogger(Dispatcher.class);
 
     private static int oo = Integer.MAX_VALUE;
 
@@ -59,6 +61,7 @@ public class Dispatcher {
      * @param timeout maximal time to wait for replies
      */
     public void gatherResults(int timeout){
+        log.debug("Gathering results with timeout " + timeout);
 
         Timer timer = new Timer(timeout);
         timer.start();
@@ -71,6 +74,8 @@ public class Dispatcher {
             try {
 
                 String [] message = pollMessage(timer.timeLeft());
+
+                log.debug("Recieved message " + Arrays.asList(message));
 
                 int id      = parseId(message);
                 String body = parseBody(message);
@@ -119,6 +124,7 @@ public class Dispatcher {
      * @throws TimeoutException     if timeout exceeded
      */
     private String[] pollMessage(int timeout) throws TimeoutException {
+        log.debug("Polling sockets with timeout " + timeout);
 
         int messageCount = poller.poll(timeout);
 
@@ -129,15 +135,17 @@ public class Dispatcher {
                     return pollServiceList.get(i).recv();
                 }
             }
+
             throw new IllegalStateException("No message recieved on polling.");
         } else {
-            // timeout has happend
+            log.debug("Socket polling timed out after " + timeout + "ms");
+
             throw new TimeoutException("Request timed out after " + timeout + " milliseconds.");
         }
     }
 
     private void registerPoller(ZmqService service){
-        poller.register(service.getSocket(), ZMQ.POLLIN);
+        poller.register(service.getSocket(), ZMQ.Poller.POLLIN);
         pollServiceList.add(service);
     }
 
@@ -264,11 +272,20 @@ public class Dispatcher {
     }
 
     private void deliverPromises() {
+        List<PromiseContainer> toRemove = new ArrayList<PromiseContainer>();
+
         for(PromiseContainer<Callback> promise : openPromises) {
             if (promise.isCleared()) {
                 promise.keep();
-                openPromises.remove(promise);
+
+                // need to delay removal since we are iterating over openPromises
+                // java.util.ConcurrentModificationException
+                toRemove.add(promise);
             }
+        }
+
+        for(PromiseContainer promise : toRemove) {
+            openPromises.remove(promise);
         }
     }
 
@@ -312,5 +329,4 @@ public class Dispatcher {
             kept = true;
         }
     }
-
 }

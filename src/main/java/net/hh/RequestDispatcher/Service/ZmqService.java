@@ -1,58 +1,90 @@
 package net.hh.RequestDispatcher.Service;
 
-import java.util.ArrayList;
+import org.apache.log4j.Logger;
+import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMsg;
 
-import org.jeromq.ZMQ;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class ZmqService implements Service {
 
-    private static final ZMQ.Context ctx = ZMQ.context(1);
+    private static final Logger log = Logger.getLogger(ZmqService.class);
 
-    private static int threads = 0;
+    private static final ZContext zCtx = new ZContext(1);
 
     private final ZMQ.Socket socket;
 
     protected String endpoint;
 
-    public ZmqService(
-            String endpoint) {
+    public ZmqService(String endpoint) {
+        log.debug("Setup ZmqService with DEALER socket for endpoint " + endpoint);
+
         this.endpoint = endpoint;
-        socket = ctx.socket(ZMQ.DEALER);
+        socket = zCtx.createSocket(ZMQ.DEALER);
         socket.connect(endpoint);
     }
 
     /**
-     * Terminate ZMQ Context.Starting service
-     * 
-     * Need to be called before sockets are closed.
-     * Blocking calls return with a ZMQError.
+     * Terminate ZMQ Context and terminate all sockets.
      */
     public static void term() {
-        ctx.term();
+        log.info("Destroying context.");
+        zCtx.destroy();
     }
 
+    @Deprecated
     public void close() {
-        socket.close();
+        zCtx.destroySocket(socket);
     }
 
-    public void send(String[] m) {
-        sendMultipart(socket, m);
+    public void send(String[] mmsg) {
+        log.debug("Sending message " + Arrays.asList(mmsg));
+
+        ZMsg frames = ZMsg.newStringMsg(mmsg);
+
+        // Add empty frame as REQ envelope
+        frames.push(new byte[0]);
+
+        frames.send(socket);
     }
 
     public String[] recv() {
-        return recvMultipart(socket);
+        ZMsg mmsg = ZMsg.recvMsg(socket);
+
+        mmsg.pollFirst();
+
+
+        String [] out = new String[mmsg.size()];
+
+
+        // copy mmsg.size() since it is changed in the loop at pollFirst()
+        int len = mmsg.size();
+        for(int i=0; i < len; i++) {
+
+            out[i] = mmsg.pollFirst().toString();
+        }
+
+        return out;
     }
 
     public static ZMQ.Poller getPoller() {
-        return ctx.poller();
+
+        // Work around bug in zContext. See pull request:
+        // https://github.com/zeromq/zeromq/pull/145
+        if (zCtx.getContext() == null) {
+            zCtx.createSocket(ZMQ.PAIR);
+        }
+
+        return zCtx.getContext().poller();
     }
 
     public ZMQ.Socket getSocket() {
         return socket;
     }
 
-    // HELPER METHODS
-
+    //////////////////// HELPER METHODS /////////////////////
     private synchronized void sendMultipart(ZMQ.Socket socket, String[] multipart) {
         if (multipart.length == 0) return;
 
@@ -61,11 +93,9 @@ public class ZmqService implements Service {
 
         int i = 0;
         for (; i < multipart.length - 1; i++) {
-            System.out.println("Sending " + multipart[i]);
             socket.sendMore(multipart[i]);
         }
 
-        System.out.println("Sending " + multipart[i]);
         socket.send(multipart[i]);
     }
 
@@ -83,7 +113,6 @@ public class ZmqService implements Service {
         String[] out = new String[buffer.size()];
         for (int i = 0; i < buffer.size(); i++) {
             out[i] = buffer.get(i);
-            System.out.println("Received " + buffer.get(i));
         }
 
         return out;

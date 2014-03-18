@@ -6,6 +6,10 @@ public class TestRequest implements Request {
 
     private String payload;
 
+    public TestRequest(){
+        this("");
+    }
+
     public TestRequest(
             String s) {
         payload = s;

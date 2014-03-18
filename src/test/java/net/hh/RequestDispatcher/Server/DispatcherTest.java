@@ -5,6 +5,7 @@ import net.hh.RequestDispatcher.Dispatcher;
 import net.hh.RequestDispatcher.Service.ZmqService;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestReply;
 import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
+import org.apache.log4j.BasicConfigurator;
 import org.junit.*;
 
 /**
@@ -17,6 +18,9 @@ public class DispatcherTest {
 
     @BeforeClass
     public static void setupMockServer() throws Exception {
+        BasicConfigurator.configure();
+
+
         echoServer = new EchoServer(echoEndpoint);
         echoServer.start();
     }
@@ -137,34 +141,6 @@ public class DispatcherTest {
 
     @Test
     public void testEmptyPromise() throws Exception {
-        final String[] answer = new String[3];
-
-        dp.promise(new Runnable() {
-            @Override
-            public void run() {
-                answer[0] = "unconditionalPromise";
-
-                dp.execute(new TestRequest(""), new Callback<TestReply>(new TestReply()) {
-                    @Override
-                    public void onSuccess(TestReply reply) {
-                        answer[1] = "dependentCallback";
-                    }
-                });
-
-            }
-        }
-        );
-
-        dp.gatherResults();
-
-        Assert.assertEquals("unconditionalPromise", answer[0]);
-        Assert.assertEquals("dependentCallback", answer[1]);
-
-    }
-
-
-    @Test
-    public void testEmptyPromise2() throws Exception {
         final String[] answer = new String[3];
 
         dp.promise(new Runnable() {

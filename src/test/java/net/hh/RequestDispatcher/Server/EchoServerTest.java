@@ -1,7 +1,7 @@
 package net.hh.RequestDispatcher.Server;
 
 import junit.framework.Assert;
-import org.jeromq.ZMQ;
+import org.zeromq.ZMQ;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -28,7 +28,7 @@ public class EchoServerTest {
 
     @Test
     public void sendMessage(){
-        ZMQ.Socket s = ZMQ.context().socket(ZMQ.REQ);
+        ZMQ.Socket s = ZMQ.context(1).socket(ZMQ.REQ);
         s.connect(echoEndpoint);
 
         for (int i = 0; i<1000; i++){
