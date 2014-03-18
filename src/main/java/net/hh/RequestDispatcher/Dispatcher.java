@@ -43,7 +43,6 @@ public class Dispatcher {
 
     }
 
-
     /**
      * Listens on sockets and executes appropriate callbacks.
      * Blocks until all Replies are received.
@@ -64,6 +63,9 @@ public class Dispatcher {
         Timer timer = new Timer(timeout);
         timer.start();
 
+        // deliver promises that are note dependent on a single callback
+        deliverPromises();
+
         while (hasPendingCallbacks()){
 
             try {
@@ -73,9 +75,12 @@ public class Dispatcher {
                 int id      = parseId(message);
                 String body = parseBody(message);
     
-                Callback c = pullCallbackObject(id);
+                Callback callback = pullCallbackObject(id);
     
-                c.processBody(body);
+                callback.processBody(body);
+
+                clearDependenciesFromPromises(callback);
+                deliverPromises();
 
             }
 
@@ -243,5 +248,69 @@ public class Dispatcher {
         }
     }
 
+
+    ///////////// PROMISES /////////////////
+
+    Set<PromiseContainer<Callback>> openPromises = new HashSet<PromiseContainer<Callback>>();
+
+    public void promise(Runnable runnable, Callback... callbacks) {
+        openPromises.add(new PromiseContainer<Callback>(runnable, callbacks));
+    }
+
+    private void clearDependenciesFromPromises(Callback callback) {
+        for(PromiseContainer<Callback> promise : openPromises) {
+            promise.clearDependency(callback);
+        }
+    }
+
+    private void deliverPromises() {
+        for(PromiseContainer<Callback> promise : openPromises) {
+            if (promise.isCleared()) {
+                promise.keep();
+                openPromises.remove(promise);
+            }
+        }
+    }
+
+    private class PromiseContainer<T> {
+        private final Runnable runnable;
+        private final Set<T> dependencies = new HashSet<T>();
+
+        private boolean kept = false;
+
+        private PromiseContainer(Runnable runnable, T[] dependencies) {
+            this.dependencies.addAll(Arrays.asList(dependencies));
+            this.runnable  = runnable;
+        }
+
+        /**
+         * Removes dependency from the list of dependencies of this promise
+         * @param dependency
+         */
+        public void clearDependency(T dependency) {
+            dependencies.remove(dependency);
+        }
+
+        /**
+         * @return sucess   true if all dependencies are removed
+         */
+        public boolean isCleared() {
+            return dependencies.isEmpty();
+        }
+
+        /**
+         * Execute stored callback.
+
+         * Throws IllegalStateException if called more than once.
+         */
+        public void keep() {
+            if (kept) {
+                throw new IllegalStateException("Called keep() twice.");
+            }
+
+            runnable.run();
+            kept = true;
+        }
+    }
 
 }
