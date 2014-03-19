@@ -53,16 +53,15 @@ public class ZmqService implements Service {
     public String[] recv() {
         ZMsg mmsg = ZMsg.recvMsg(socket);
 
+        // Remove REP envelope
         mmsg.pollFirst();
-
 
         String [] out = new String[mmsg.size()];
 
-
-        // copy mmsg.size() since it is changed in the loop at pollFirst()
+        // copy mesage size() since it is changed in the loop at pollFirst()
         int len = mmsg.size();
-        for(int i=0; i < len; i++) {
 
+        for(int i=0; i < len; i++) {
             out[i] = mmsg.pollFirst().toString();
         }
 
@@ -70,10 +69,10 @@ public class ZmqService implements Service {
     }
 
     public static ZMQ.Poller getPoller() {
-
         // Work around bug in zContext. See pull request:
         // https://github.com/zeromq/zeromq/pull/145
         if (zCtx.getContext() == null) {
+            log.warn("Working around bug in jeromq 0.3.3. Please consider updating.");
             zCtx.createSocket(ZMQ.PAIR);
         }
 
