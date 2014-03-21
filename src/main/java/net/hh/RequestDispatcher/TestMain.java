@@ -31,7 +31,6 @@ public class TestMain {
             e.printStackTrace();
         }
 
-        ZmqService.term();
     }
 
     public static void issueRequests(final int id) {

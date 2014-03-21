@@ -1,127 +1,149 @@
 package net.hh.RequestDispatcher.Server;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
-import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
 import org.zeromq.ZMsg;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * ZMQ ReqReply Server that returns the [multipart] message that was received to the sender.
  */
-public class EchoServer {
+public class EchoServer implements Runnable {
 
     private static final Logger log = Logger.getLogger(EchoServer.class);
 
-    private static final ZMQ.Context ctx = ZMQ.context(1);
+    // SOCKET CONFIG
+    static final int K = 1000;
+    static final int M = K * K;
+    static final int BUFFER = 100 * K;
+    static final int LINGER = 100;
 
+    // Constructor parameters
+    private final ZMQ.Context ctx;
     private final String endpoint;
 
-    private int duration;
+    private ZMQ.Socket socket;
+    private int delay;
+
+    // Thread handling
+    private Thread thread;
+    private boolean ownContext;
+
+    private ZMQ.Socket pipe;
+
 
     /**
-     * @param endpoint to listen on
+     * Creates Echo Server that listens on a given enpoint.
+     *
+     * @param endpoint
      */
     public EchoServer(String endpoint) {
+        this(ZMQ.context(1), endpoint);
+        ownContext = true;
+    }
+
+    /**
+     * Opens a socket on endpoint that returns multipart messages.
+     * <p/>
+     * Start server with start() in separate Thread.
+     * Server will shut down properly when context is terminated.
+     *
+     * @param ctx      context to register socket on
+     * @param endpoint endpoint to listen on
+     */
+    public EchoServer(ZMQ.Context ctx, String endpoint) {
+        this.ctx = ctx;
         this.endpoint = endpoint;
+        this.ownContext = false;
+
+        // create socket
+        socket = ctx.socket(ZMQ.REP);
+
+        // config
+        socket.setReceiveBufferSize(BUFFER);
+        socket.setSendBufferSize(BUFFER);
+        socket.setHWM(BUFFER);
+        socket.setLinger(LINGER);
+
+        // bind socket
+        // When using inproc it is important to do this before sockets connect.
+        // Binding the socket inside the constructor ensures this.
+        socket.bind(endpoint);
+    }
+
+    /**
+     * Start Echo Server
+     */
+    public void run() {
+        log.info("Starting service.");
+        try {
+            // here is the logic
+            loop();
+
+        } catch (ZMQException e) {
+            if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()) {
+                log.debug("Received ETERM");
+            }
+        } catch (InterruptedException e) {
+            log.debug("Interrupted (on sleep).");
+        } finally {
+            log.info("Closing socket.");
+            socket.close();
+            socket = null;
+        }
+    }
+
+    // echo loop
+    private void loop() throws InterruptedException {
+        while (!Thread.currentThread().isInterrupted()) {
+            ZMsg msg = ZMsg.recvMsg(socket);
+            log.debug("Received Message " + msg);
+
+            if (msg == null) {
+                log.debug("Interrupted (on recv).");
+                break;
+            }
+
+            Thread.sleep(delay);
+
+            msg.send(socket);
+        }
     }
 
     /**
      * Set Thread.sleep() delay for each message
-     * @param duration
+     *
+     * @param delay
      */
-    public void setDuration(int duration){
-        this.duration = duration;
-    };
+    public synchronized void setDelay(int delay) {
+        this.delay = delay;
+    }
 
     /**
-     * Start Request/Reply Loop
+     * Starts echo server in a new thread.
      */
-    public void serve() {
-        log.info("Starting echo server");
-
-        log.debug("Test with: zmqdump REQ \"" + endpoint + "\"");
-        ZMQ.Socket socket = ctx.socket(ZMQ.REP);
-        socket.bind(endpoint);
-
-        // socket.setReceiveTimeOut(5000);
-
-        while (!Thread.currentThread().isInterrupted()) {
-            log.info("Listening on " + endpoint);
-
-            try {
-
-                ZMsg msg = ZMsg.recvMsg(socket);
-
-                log.info("Received Message " + printMsg(msg));
-
-                if (msg == null) {
-                    break;
-                }
-
-                Thread.sleep(duration);
-
-                msg.send(socket);
-
-            } catch (ZMQException e) {
-                if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()) {
-                    break;
-                }
-            } catch (InterruptedException e) {
-                // interrupted sleep
-                break;
-            }
-        }
-
-        System.out.println("Closing sockets");
-        socket.close();
-    }
-
-    private String printMsg(ZMsg msg) {
-        List<String> out = new ArrayList<String>();
-
-        for (ZFrame frame : msg){
-            out.add(frame.toString());
-        }
-
-        return "[" + StringUtils.join(out, ",") + "]";
-    }
-
-    /////////////// THREAD HANDLING /////////////////////
-    private Thread thread = new Thread(new Runnable() {
-        public void run() {
-            serve();
-        }
-    });
-
-    public void start() {
+    public synchronized void start() {
+        if (thread != null) throw new IllegalStateException("Thread already started");
+        thread = new Thread(this);
         thread.start();
     }
 
-    public void stop() {
-        try {
-            thread.interrupt();
-            thread.join();
-            System.out.println("Terminated Server Thread");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    /**
+     * Stops the echo server.
+     * Only works if a new context was created at startup. Otherwise the server
+     * will shut down when the passed context terminates.
+     */
+    public synchronized void stop() {
+        if (thread == null) throw new IllegalStateException("Thread not started.");
+
+        // Cleanup context if we created it.
+        if (ownContext) {
+            ctx.term(); // this will cause ETERM at socket and close it.
+        } else {
+            log.warn("Cannot shutdown echo server. Terminate context manually.");
         }
+
+        //TODO: Handle shutdown when context was not created.
     }
 
-    public static void term() {
-        System.out.println("Terminating Context");
-        ctx.term();
-    }
-
-    public void join() {
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
 }

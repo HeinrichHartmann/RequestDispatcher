@@ -24,16 +24,13 @@ public class DispatcherTestTimeout {
         BasicConfigurator.configure();
 
         echoServer = new EchoServer(echoEndpoint);
-        echoServer.setDuration(DURATION);
+        echoServer.setDelay(DURATION);
         echoServer.start();
     }
 
     @AfterClass
     public static void stopMockServer() throws Exception {
-        EchoServer.term();
         echoServer.stop();
-
-        ZmqService.term(); // term context
     }
 
     Dispatcher dp;
@@ -77,7 +74,7 @@ public class DispatcherTestTimeout {
     }
 
 
-    @Test
+    @Test(timeout = 1000)
     public void testTimeOk() throws Exception {
         final String[] answer = new String[1];
 

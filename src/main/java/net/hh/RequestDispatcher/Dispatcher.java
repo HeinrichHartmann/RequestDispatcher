@@ -19,11 +19,66 @@ import java.util.concurrent.TimeoutException;
  * @author hartmann, rpickhardt
  */
 public class Dispatcher {
-    Logger log = Logger.getLogger(Dispatcher.class);
+
+    private static Logger log = Logger.getLogger(Dispatcher.class);
 
     private static int oo = Integer.MAX_VALUE;
 
-    public void execute(Request request, Callback callback){
+    // holds registered services
+    private final Map<String, Service> serviceInstances = new HashMap<String, Service>();
+
+    // holds default services for request types
+    private final Map<Class, String> defaultService = new HashMap<Class, String>();
+
+    /////////////////// CONSTRUCTOR ////////////////////////
+
+    public Dispatcher() {}
+
+
+    ////////////////// SERVICE ADMINISTRATION //////////////////
+
+    public void registerServiceProvider(String serviceName, ZmqService service) {
+        if (serviceInstances.containsKey(serviceName)) {
+            throw new IllegalArgumentException("Service Already registered");
+        }
+        serviceInstances.put(serviceName, service);
+
+        registerPoller(service);
+    }
+
+    private Service getServiceProvider(final String serviceName) {
+        if (! serviceInstances.containsKey(serviceName)){
+            throw new IllegalArgumentException("No service provider registered for name " + serviceName);
+        }
+        return serviceInstances.get(serviceName);
+    }
+
+    //////////////// DEFAULT SERVICE RESOLUTION ////////////////////
+
+    public void setDefaultService(Class<TestRequest> requestClass, String serviceName) {
+        defaultService.put(requestClass, serviceName);
+    }
+
+    private String inferServiceName(final Request request) {
+        if (! defaultService.containsKey(request.getClass())) {
+            throw new IllegalArgumentException("No default service registered for request type");
+        }
+
+        return defaultService.get(request.getClass());
+    }
+
+    /////////////////// REQUEST EXECUTION  //////////////////////
+
+    /**
+     * Sends a non-blocking Request to the default service registered for the
+     * Request type.
+     *
+     * Requires default service to be registered for request type.
+     *
+     * @param request
+     * @param callback
+     */
+    public void execute(Request request, Callback callback) {
         execute(inferServiceName(request), request, callback);
     }
 
@@ -102,13 +157,16 @@ public class Dispatcher {
         }
     }
 
+    /**
+     * Closes sockets of all registered services
+     */
     public void close() {
-
+        log.debug("Dispatcher object.");
         for (Service s : serviceInstances.values()){
             s.close();
         }
-
     }
+
 
     //////////////////// POLLING //////////////////////////
 
@@ -147,41 +205,6 @@ public class Dispatcher {
     private void registerPoller(ZmqService service){
         poller.register(service.getSocket(), ZMQ.Poller.POLLIN);
         pollServiceList.add(service);
-    }
-
-
-    ////////////////// SERVICE ADMINISTRATION //////////////////
-
-    private final HashMap<String, Service> serviceInstances = new HashMap<String, Service>();
-
-    public void registerServiceProvider(String serviceName, ZmqService service) {
-        if (serviceInstances.containsKey(serviceName)) {
-            throw new IllegalArgumentException("Service Already registered");
-        }
-
-        serviceInstances.put(serviceName, service);
-
-        registerPoller(service);
-    }
-
-    public Service getServiceProvider(final String serviceName){
-        if (! serviceInstances.containsKey(serviceName)){
-            throw new IllegalArgumentException("No service provider registered for name " + serviceName);
-        }
-        return serviceInstances.get(serviceName);
-    }
-
-
-    //////////////// DEFAULT SERVICE RESOLUTION ////////////////////
-
-    private final Map<Class, String> defaultService = new HashMap<Class, String>();
-
-    public void setDefaultService(Class<TestRequest> testRequestClass, String test) {
-        defaultService.put(testRequestClass, test);
-    }
-
-    private String inferServiceName(final Request request) {
-        return defaultService.get(request.getClass());
     }
 
     ///////////// Callback Object Storage ////////////

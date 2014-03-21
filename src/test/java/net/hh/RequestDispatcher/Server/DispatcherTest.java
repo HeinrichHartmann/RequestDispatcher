@@ -20,17 +20,13 @@ public class DispatcherTest {
     public static void setupMockServer() throws Exception {
         BasicConfigurator.configure();
 
-
         echoServer = new EchoServer(echoEndpoint);
         echoServer.start();
     }
 
     @AfterClass
     public static void stopMockServer() throws Exception {
-        EchoServer.term();
         echoServer.stop();
-
-        ZmqService.term();
     }
 
     Dispatcher dp;

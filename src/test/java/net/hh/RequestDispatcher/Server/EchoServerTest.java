@@ -1,43 +1,60 @@
 package net.hh.RequestDispatcher.Server;
 
 import junit.framework.Assert;
-import org.zeromq.ZMQ;
+import org.apache.log4j.BasicConfigurator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.zeromq.ZMQ;
 
 /**
  * Created by hartmann on 3/17/14.
  */
 public class EchoServerTest {
 
+    static {
+        BasicConfigurator.configure();
+    }
+
+
+    static ZMQ.Context ctx;
     static EchoServer echoServer;
-    static String echoEndpoint = "tcp://127.0.0.1:60123";
+    // static String echoEndpoint = "tcp://127.0.0.1:60123";
+    static String echoEndpoint = "inproc://echoserver";
 
     @BeforeClass
     public static void setupMockServer() throws Exception {
-        echoServer = new EchoServer(echoEndpoint);
+        ctx = ZMQ.context(1);
+        echoServer = new EchoServer(ctx, echoEndpoint);
         echoServer.start();
+
+        // need to bind before connect
+        Thread.sleep(100);
     }
 
     @AfterClass
     public static void stopMockServer() throws Exception {
-        EchoServer.term();
         echoServer.stop();
+        ctx.term();
     }
 
-    @Test
+    @Test(timeout = 500)
     public void sendMessage(){
-        ZMQ.Socket s = ZMQ.context(1).socket(ZMQ.REQ);
+        ZMQ.Socket s = ctx.socket(ZMQ.REQ);
+
         s.connect(echoEndpoint);
 
-        for (int i = 0; i<1000; i++){
+        for (int i = 0; i < 10; i++){
             String MSG = "TEST MESSAGE";
             s.send(MSG);
 
-            String REP = s.recvStr(500);
+            String REP = s.recvStr(50);
             Assert.assertEquals(MSG, REP);
         }
+
+        s.setLinger(100);
+        s.close();
+
     }
 
 }
