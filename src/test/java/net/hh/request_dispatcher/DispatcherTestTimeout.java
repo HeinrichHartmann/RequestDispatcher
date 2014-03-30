@@ -11,31 +11,21 @@ import org.zeromq.ZMQ;
  */
 public class DispatcherTestTimeout {
 
-    private static final int DURATION = 10000;
-    private static final int GRACE = 1000;
+    private static final int DURATION = 500;
+    private static final int GRACE = 100;
 
-    static EchoServer echoServer;
-    static String echoEndpoint = "inproc://127.0.0.1:60123";
-    static ZMQ.Context ctx = ZMQ.context(0);
-
-    @BeforeClass
-    public static void setupMockServer() throws Exception {
-        // BasicConfigurator.configure();
-
-        echoServer = new EchoServer(ctx, echoEndpoint);
-        echoServer.setDelay(DURATION);
-        echoServer.start();
-    }
-
-    @AfterClass
-    public static void stopMockServer() throws Exception {
-        echoServer.stop();
-    }
+    private EchoServer echoServer;
+    private String echoEndpoint = "inproc://127.0.0.1:60123";
+    private ZMQ.Context ctx = ZMQ.context(0);
 
     Dispatcher dp;
 
     @Before
     public void setUp() throws Exception {
+        echoServer = new EchoServer(ctx, echoEndpoint);
+        echoServer.setDelay(DURATION);
+        echoServer.start();
+
         // before each Test
         dp = new Dispatcher();
         dp.registerServiceProvider("ECHO", new ZmqService(ctx, echoEndpoint));
@@ -45,6 +35,7 @@ public class DispatcherTestTimeout {
     @After
     public void tearDown() throws Exception {
         dp.close(); // close sockets
+        echoServer.stop();
     }
 
     private final String TIMEOUT_MSG = "TIMEOUT";
