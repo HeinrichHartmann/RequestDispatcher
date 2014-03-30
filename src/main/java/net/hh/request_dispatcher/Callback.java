@@ -12,16 +12,15 @@ import java.io.Serializable;
  */
 public abstract class Callback<ReplyType extends Serializable> {
 
-    protected ReplyType reply;
-
-    public Callback() {}
-
     /**
-     * Create Callback Object
-     * @param reply needs to be passed a mutable reply object will be passed to the onSuccess method.
+     * Do use empty constructor instead. No need to supply Reply instance any more.
+     * @param reply
      */
-    public Callback(ReplyType reply){
-        this.reply = reply;
+    @Deprecated
+    public Callback(ReplyType reply) {
+    }
+
+    public Callback() {
     }
 
     /**
@@ -37,19 +36,6 @@ public abstract class Callback<ReplyType extends Serializable> {
      */
     public void onTimeOut(String errorMessage){
         
-    }
-
-    public void processBody(String body) {
-        // reply.fill(body);
-        onSuccess(reply);
-    }
-
-    /**
-     * passes the error message of the timeout to the onTimeOut method
-     * @param message possible error message
-     */
-    public void processOnTimeout(String message){
-        onTimeOut(message);
     }
 
 }

@@ -1,7 +1,7 @@
 package net.hh.request_dispatcher;
 
 import net.hh.request_dispatcher.service.ZmqService;
-import org.apache.commons.lang3.SerializationUtils;
+import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMsg;
@@ -147,12 +147,12 @@ public class Dispatcher {
             catch (TimeoutException e) {
 
                 for (Callback c: pendingCallbacks.values()){
-                    c.processOnTimeout(e.getMessage());
+                    c.onTimeOut(e.getMessage());
                 }
 
                 pendingCallbacks.clear();
 
-                System.out.println("SERVER: timeout on the server");
+                log.info("SERVER: timeout on the server");
             }
         }
     }
@@ -248,7 +248,7 @@ public class Dispatcher {
      */
     private ZMsg encodeMessage(int callbackId, Serializable request) {
         ZMsg out = new ZMsg();
-        out.push(SerializationUtils.serialize(request));
+        out.push(SerializationHelper.serialize(request));
         out.push(int2bytes(callbackId));
         return out;
     }
@@ -257,16 +257,16 @@ public class Dispatcher {
         return bytes2int(message.peekFirst().getData());
     }
 
+    private Serializable parseReply(ZMsg message) {
+        return (Serializable) SerializationHelper.deserialize(message.peekLast().getData());
+    }
+
     public static byte[] int2bytes(int i) {
         return BigInteger.valueOf(i).toByteArray();
     }
 
     public static int bytes2int(byte[] data) {
         return new BigInteger(data).intValue();
-    }
-
-    private Serializable parseReply(ZMsg message) {
-        return (Serializable) SerializationUtils.deserialize(message.peekLast().getData());
     }
 
     ////////////// TIMEOUT ////////////

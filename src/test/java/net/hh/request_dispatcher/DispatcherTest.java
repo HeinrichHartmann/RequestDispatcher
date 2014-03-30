@@ -2,7 +2,7 @@ package net.hh.request_dispatcher;
 
 import net.hh.request_dispatcher.Server.EchoServer;
 import net.hh.request_dispatcher.service.ZmqService;
-import net.hh.request_dispatcher.transfer.test_service.TestDTO;
+import net.hh.request_dispatcher.transfer.TestDTO;
 import org.junit.*;
 import org.zeromq.ZMQ;
 
@@ -83,7 +83,7 @@ public class DispatcherTest {
     public void testPromise() throws Exception {
         final String[] answer = new String[3];
 
-        Callback<TestDTO> callback1 = new Callback<TestDTO>(new TestDTO()) {
+        Callback<TestDTO> callback1 = new Callback<TestDTO>() {
             @Override
             public void onSuccess(TestDTO reply) {
                 answer[0] = reply.toString();
@@ -91,7 +91,7 @@ public class DispatcherTest {
         };
         dp.execute(new TestDTO("msg1"), callback1);
 
-        Callback<TestDTO> callback2 = new Callback<TestDTO>(new TestDTO()) {
+        Callback<TestDTO> callback2 = new Callback<TestDTO>() {
             @Override
             public void onSuccess(TestDTO reply) {
                 answer[1] = reply.toString();
@@ -99,7 +99,7 @@ public class DispatcherTest {
         };
         dp.execute(new TestDTO("msg2"), callback2);
 
-        Callback<TestDTO> callback3 = new Callback<TestDTO>(new TestDTO()) {
+        Callback<TestDTO> callback3 = new Callback<TestDTO>() {
             @Override
             public void onSuccess(TestDTO reply) {
                 throw new RuntimeException();
@@ -142,7 +142,7 @@ public class DispatcherTest {
             public void run() {
                 answer[0] = "unconditionalPromise";
 
-                dp.execute(new TestDTO(""), new Callback<TestDTO>(new TestDTO()) {
+                dp.execute(new TestDTO(""), new Callback<TestDTO>() {
                     @Override
                     public void onSuccess(TestDTO reply) {
                         answer[1] = "dependentCallback";

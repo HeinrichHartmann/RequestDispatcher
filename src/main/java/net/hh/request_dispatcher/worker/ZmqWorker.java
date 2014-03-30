@@ -1,6 +1,6 @@
 package net.hh.request_dispatcher.worker;
 
-import org.apache.commons.lang3.SerializationUtils;
+import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
@@ -95,11 +95,11 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
                     continue;
                 }
 
-                request = (RequestType) SerializationUtils.deserialize(requestPayload);
+                request = (RequestType) SerializationHelper.deserialize(requestPayload);
 
                 reply = handler.handleRequest(request);
 
-                byte[] replyPayload = SerializationUtils.serialize(reply);
+                byte[] replyPayload = SerializationHelper.serialize(reply);
 
                 sendPayload(replyPayload);
 

@@ -2,7 +2,7 @@ package net.hh.request_dispatcher;
 
 import net.hh.request_dispatcher.Server.EchoServer;
 import net.hh.request_dispatcher.service.ZmqService;
-import net.hh.request_dispatcher.transfer.test_service.TestDTO;
+import net.hh.request_dispatcher.transfer.TestDTO;
 import org.junit.*;
 import org.zeromq.ZMQ;
 
@@ -45,7 +45,7 @@ public class DispatcherTestTimeout {
 
         final String[] answer = new String[1];
 
-        dp.execute(new TestDTO(), new Callback<TestDTO>(new TestDTO()) {
+        dp.execute(new TestDTO(), new Callback<TestDTO>() {
             @Override
             public void onSuccess(TestDTO reply) {
                 throw new RuntimeException("Not Timed out");
@@ -68,7 +68,7 @@ public class DispatcherTestTimeout {
     public void testTimeOk() throws Exception {
         final String[] answer = new String[1];
 
-        dp.execute(new TestDTO(), new Callback<TestDTO>(new TestDTO()) {
+        dp.execute(new TestDTO(), new Callback<TestDTO>() {
             @Override
             public void onSuccess(TestDTO reply) {
                 answer[0] = "OK";
