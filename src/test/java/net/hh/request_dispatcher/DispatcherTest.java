@@ -3,7 +3,6 @@ package net.hh.request_dispatcher;
 import net.hh.request_dispatcher.Server.EchoServer;
 import net.hh.request_dispatcher.service.ZmqService;
 import net.hh.request_dispatcher.transfer.test_service.TestDTO;
-import net.hh.request_dispatcher.transfer.test_service.TestRequest;
 import org.junit.*;
 import org.zeromq.ZMQ;
 
@@ -35,7 +34,6 @@ public class DispatcherTest {
         dp = new Dispatcher();
         dp.registerServiceProvider("ECHO", new ZmqService(ctx, echoEndpoint));
         dp.setDefaultService(String.class, "ECHO");
-        dp.setDefaultService(TestRequest.class, "ECHO");
         dp.setDefaultService(TestDTO.class, "ECHO");
     }
 
