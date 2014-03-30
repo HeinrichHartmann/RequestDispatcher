@@ -1,6 +1,6 @@
-package net.hh.RequestDispatcher;
+package net.hh.request_dispatcher;
 
-import net.hh.RequestDispatcher.TransferClasses.Reply;
+import java.io.Serializable;
 
 /**
  * Callback class that is used as an interface for the ZMQ callbacks which are 
@@ -10,10 +10,11 @@ import net.hh.RequestDispatcher.TransferClasses.Reply;
  *
  * @param <ReplyType>
  */
-public abstract class Callback<ReplyType extends Reply> {
+public abstract class Callback<ReplyType extends Serializable> {
 
     protected ReplyType reply;
 
+    public Callback() {}
 
     /**
      * Create Callback Object
@@ -37,12 +38,12 @@ public abstract class Callback<ReplyType extends Reply> {
     public void onTimeOut(String errorMessage){
         
     }
-    
+
     public void processBody(String body) {
-        reply.fill(body);
+        // reply.fill(body);
         onSuccess(reply);
     }
-    
+
     /**
      * passes the error message of the timeout to the onTimeOut method
      * @param message possible error message

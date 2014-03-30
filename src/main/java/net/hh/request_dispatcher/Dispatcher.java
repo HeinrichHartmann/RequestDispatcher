@@ -1,12 +1,13 @@
-package net.hh.RequestDispatcher;
+package net.hh.request_dispatcher;
 
-import net.hh.RequestDispatcher.Service.Service;
-import net.hh.RequestDispatcher.Service.ZmqService;
-import net.hh.RequestDispatcher.TransferClasses.Request;
-import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
+import net.hh.request_dispatcher.service.ZmqService;
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
+import org.zeromq.ZMsg;
 
+import java.io.Serializable;
+import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
@@ -25,7 +26,7 @@ public class Dispatcher {
     private static int oo = Integer.MAX_VALUE;
 
     // holds registered services
-    private final Map<String, Service> serviceInstances = new HashMap<String, Service>();
+    private final Map<String, ZmqService> serviceInstances = new HashMap<String, ZmqService>();
 
     // holds default services for request types
     private final Map<Class, String> defaultService = new HashMap<Class, String>();
@@ -33,7 +34,6 @@ public class Dispatcher {
     /////////////////// CONSTRUCTOR ////////////////////////
 
     public Dispatcher() {}
-
 
     ////////////////// SERVICE ADMINISTRATION //////////////////
 
@@ -46,7 +46,7 @@ public class Dispatcher {
         registerPoller(service);
     }
 
-    private Service getServiceProvider(final String serviceName) {
+    private ZmqService getServiceProvider(final String serviceName) {
         if (! serviceInstances.containsKey(serviceName)){
             throw new IllegalArgumentException("No service provider registered for name " + serviceName);
         }
@@ -55,11 +55,11 @@ public class Dispatcher {
 
     //////////////// DEFAULT SERVICE RESOLUTION ////////////////////
 
-    public void setDefaultService(Class<TestRequest> requestClass, String serviceName) {
+    public void setDefaultService(Class requestClass, String serviceName) {
         defaultService.put(requestClass, serviceName);
     }
 
-    private String inferServiceName(final Request request) {
+    private String inferServiceName(final Serializable request) {
         if (! defaultService.containsKey(request.getClass())) {
             throw new IllegalArgumentException("No default service registered for request type");
         }
@@ -78,7 +78,7 @@ public class Dispatcher {
      * @param request
      * @param callback
      */
-    public void execute(Request request, Callback callback) {
+    public void execute(Serializable request, Callback callback) {
         execute(inferServiceName(request), request, callback);
     }
 
@@ -90,7 +90,7 @@ public class Dispatcher {
      * @param request       request object that will be serialized and passed to the server
      * @param callback
      */
-    public void execute(String serviceName, Request request, Callback callback) {
+    public void execute(String serviceName, Serializable request, Callback callback) {
 
         int id = generateCallbackId(callback);
 
@@ -128,16 +128,16 @@ public class Dispatcher {
 
             try {
 
-                String [] message = pollMessage(timer.timeLeft());
+                ZMsg message = pollMessage(timer.timeLeft());
 
                 log.debug("Recieved message " + Arrays.asList(message));
 
                 int id      = parseId(message);
-                String body = parseBody(message);
+                Serializable reply = parseReply(message);
     
                 Callback callback = pullCallbackObject(id);
     
-                callback.processBody(body);
+                callback.onSuccess(reply);
 
                 clearDependenciesFromPromises(callback);
                 deliverPromises();
@@ -162,7 +162,7 @@ public class Dispatcher {
      */
     public void close() {
         log.debug("Dispatcher object.");
-        for (Service s : serviceInstances.values()){
+        for (ZmqService s : serviceInstances.values()){
             s.close();
         }
     }
@@ -170,8 +170,8 @@ public class Dispatcher {
 
     //////////////////// POLLING //////////////////////////
 
-    private final ZMQ.Poller poller = ZmqService.getPoller();
-    private final List<Service> pollServiceList = new ArrayList<Service>();
+    private final ZMQ.Poller poller = new ZMQ.Poller(5);
+    private final List<ZmqService> pollServiceList = new ArrayList<ZmqService>();
 
     /**
      * Recieves multipart messages from all open sockets as String [].
@@ -181,7 +181,7 @@ public class Dispatcher {
      * @return multipartMessage
      * @throws TimeoutException     if timeout exceeded
      */
-    private String[] pollMessage(int timeout) throws TimeoutException {
+    private ZMsg pollMessage(int timeout) throws TimeoutException {
         log.debug("Polling sockets with timeout " + timeout);
 
         int messageCount = poller.poll(timeout);
@@ -246,17 +246,27 @@ public class Dispatcher {
      * @param request
      * @return message
      */
-    private String[] encodeMessage(int callbackId, Request request) {
-        // return new String[] { callbackID,request.serialize() };
-        return new String[] {String.valueOf(callbackId), request.serialize() };
+    private ZMsg encodeMessage(int callbackId, Serializable request) {
+        ZMsg out = new ZMsg();
+        out.push(SerializationUtils.serialize(request));
+        out.push(int2bytes(callbackId));
+        return out;
     }
 
-    private int parseId(String [] message) {
-        return Integer.valueOf(message[0]);
+    private int parseId(ZMsg message) {
+        return bytes2int(message.peekFirst().getData());
     }
 
-    private String parseBody(String[] message) {
-        return message[1];
+    public static byte[] int2bytes(int i) {
+        return BigInteger.valueOf(i).toByteArray();
+    }
+
+    public static int bytes2int(byte[] data) {
+        return new BigInteger(data).intValue();
+    }
+
+    private Serializable parseReply(ZMsg message) {
+        return (Serializable) SerializationUtils.deserialize(message.peekLast().getData());
     }
 
     ////////////// TIMEOUT ////////////

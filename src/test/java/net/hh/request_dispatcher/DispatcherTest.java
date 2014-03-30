@@ -1,26 +1,24 @@
-package net.hh.RequestDispatcher.Server;
+package net.hh.request_dispatcher;
 
-import net.hh.RequestDispatcher.Callback;
-import net.hh.RequestDispatcher.Dispatcher;
-import net.hh.RequestDispatcher.Service.ZmqService;
-import net.hh.RequestDispatcher.TransferClasses.TestService.TestReply;
-import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
-import org.apache.log4j.BasicConfigurator;
+import net.hh.request_dispatcher.Server.EchoServer;
+import net.hh.request_dispatcher.service.ZmqService;
+import net.hh.request_dispatcher.transfer.test_service.TestDTO;
+import net.hh.request_dispatcher.transfer.test_service.TestRequest;
 import org.junit.*;
+import org.zeromq.ZMQ;
 
 /**
  * Created by hartmann on 3/17/14.
  */
 public class DispatcherTest {
 
+    static ZMQ.Context ctx = ZMQ.context(0);
+    static String echoEndpoint = "inproc://127.0.0.1:60123";
     static EchoServer echoServer;
-    static String echoEndpoint = "tcp://127.0.0.1:60123";
 
     @BeforeClass
     public static void setupMockServer() throws Exception {
-        BasicConfigurator.configure();
-
-        echoServer = new EchoServer(echoEndpoint);
+        echoServer = new EchoServer(ctx, echoEndpoint);
         echoServer.start();
     }
 
@@ -35,8 +33,10 @@ public class DispatcherTest {
     public void setUp() throws Exception {
         // before each Test
         dp = new Dispatcher();
-        dp.registerServiceProvider("ECHO", new ZmqService(echoEndpoint));
+        dp.registerServiceProvider("ECHO", new ZmqService(ctx, echoEndpoint));
+        dp.setDefaultService(String.class, "ECHO");
         dp.setDefaultService(TestRequest.class, "ECHO");
+        dp.setDefaultService(TestDTO.class, "ECHO");
     }
 
     @After
@@ -47,10 +47,10 @@ public class DispatcherTest {
     @Test
     public void testExecute() throws Exception {
         final String[] answer = new String[1];
-        dp.execute(new TestRequest("hi"), new Callback<TestReply>(new TestReply()) {
+        dp.execute("hi", new Callback<String>() {
             @Override
-            public void onSuccess(TestReply reply) {
-                answer[0] = reply.serialize();
+            public void onSuccess(String reply) {
+                answer[0] = reply;
             }
         });
         dp.gatherResults();
@@ -61,15 +61,15 @@ public class DispatcherTest {
     public void chainedExecute() throws Exception {
         final String[] answer = new String[2];
 
-        dp.execute(new TestRequest("msg1"), new Callback<TestReply>(new TestReply()) {
+        dp.execute("msg1", new Callback<String>() {
             @Override
-            public void onSuccess(TestReply reply) {
-                answer[0] = reply.serialize();
-                dp.execute(new TestRequest("msg2"), new Callback<TestReply>(new TestReply()) {
+            public void onSuccess(String reply) {
+                answer[0] = reply;
+                dp.execute("msg2", new Callback<String>() {
                     @Override
-                    public void onSuccess(TestReply reply) {
+                    public void onSuccess(String reply) {
                         Assert.assertEquals("msg1", answer[0]);
-                        answer[1] = reply.serialize();
+                        answer[1] = reply;
                     }
                 });
             }
@@ -85,25 +85,25 @@ public class DispatcherTest {
     public void testPromise() throws Exception {
         final String[] answer = new String[3];
 
-        Callback<TestReply> callback1 = new Callback<TestReply>(new TestReply()) {
+        Callback<TestDTO> callback1 = new Callback<TestDTO>(new TestDTO()) {
             @Override
-            public void onSuccess(TestReply reply) {
-                answer[0] = reply.serialize();
+            public void onSuccess(TestDTO reply) {
+                answer[0] = reply.toString();
             }
         };
-        dp.execute(new TestRequest("msg1"), callback1);
+        dp.execute(new TestDTO("msg1"), callback1);
 
-        Callback<TestReply> callback2 = new Callback<TestReply>(new TestReply()) {
+        Callback<TestDTO> callback2 = new Callback<TestDTO>(new TestDTO()) {
             @Override
-            public void onSuccess(TestReply reply) {
-                answer[1] = reply.serialize();
+            public void onSuccess(TestDTO reply) {
+                answer[1] = reply.toString();
             }
         };
-        dp.execute(new TestRequest("msg2"), callback2);
+        dp.execute(new TestDTO("msg2"), callback2);
 
-        Callback<TestReply> callback3 = new Callback<TestReply>(new TestReply()) {
+        Callback<TestDTO> callback3 = new Callback<TestDTO>(new TestDTO()) {
             @Override
-            public void onSuccess(TestReply reply) {
+            public void onSuccess(TestDTO reply) {
                 throw new RuntimeException();
             }
         };
@@ -144,9 +144,9 @@ public class DispatcherTest {
             public void run() {
                 answer[0] = "unconditionalPromise";
 
-                dp.execute(new TestRequest(""), new Callback<TestReply>(new TestReply()) {
+                dp.execute(new TestDTO(""), new Callback<TestDTO>(new TestDTO()) {
                     @Override
-                    public void onSuccess(TestReply reply) {
+                    public void onSuccess(TestDTO reply) {
                         answer[1] = "dependentCallback";
                     }
                 });
@@ -162,6 +162,12 @@ public class DispatcherTest {
 
     }
 
+    @Test
+    public void testIntByteConv() throws Exception {
+        for (int i = 5; i < 5000; i += 235) {
+            Assert.assertEquals(i, Dispatcher.bytes2int(Dispatcher.int2bytes(i)));
+        }
+    }
 }
 
 

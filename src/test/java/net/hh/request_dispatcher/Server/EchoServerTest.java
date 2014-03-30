@@ -1,4 +1,4 @@
-package net.hh.RequestDispatcher.Server;
+package net.hh.request_dispatcher.Server;
 
 import junit.framework.Assert;
 import org.apache.log4j.BasicConfigurator;

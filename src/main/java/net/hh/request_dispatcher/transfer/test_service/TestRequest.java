@@ -1,8 +1,8 @@
-package net.hh.RequestDispatcher.TransferClasses.TestService;
+package net.hh.request_dispatcher.transfer.test_service;
 
-import net.hh.RequestDispatcher.TransferClasses.Request;
+import java.io.Serializable;
 
-public class TestRequest implements Request {
+public class TestRequest implements Serializable {
 
     private String payload;
 

@@ -1,4 +1,4 @@
-package net.hh.RequestDispatcher.Server;
+package net.hh.request_dispatcher.Server;
 
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
@@ -15,8 +15,8 @@ public class EchoServer implements Runnable {
     // SOCKET CONFIG
     static final int K = 1000;
     static final int M = K * K;
-    static final int BUFFER = 100 * K;
-    static final int LINGER = 100;
+    static final int HWM = 100;
+    static final int LINGER = 1000;
 
     // Constructor parameters
     private final ZMQ.Context ctx;
@@ -60,9 +60,7 @@ public class EchoServer implements Runnable {
         socket = ctx.socket(ZMQ.REP);
 
         // config
-        socket.setReceiveBufferSize(BUFFER);
-        socket.setSendBufferSize(BUFFER);
-        socket.setHWM(BUFFER);
+        socket.setHWM(HWM);
         socket.setLinger(LINGER);
 
         // bind socket
@@ -76,9 +74,32 @@ public class EchoServer implements Runnable {
      */
     public void run() {
         log.info("Starting service.");
+        int msgCount = 0;
         try {
+            boolean suc; // success flag
+
             // here is the logic
-            loop();
+            while (!Thread.currentThread().isInterrupted()) {
+                ZMsg msg = ZMsg.recvMsg(socket);
+                msgCount++;
+                log.debug("Received Message " + msg);
+
+                if (msg == null) {
+                    log.debug("Interrupted (on recv).");
+                    break;
+                }
+
+                if ( msg.peekLast().toString().equals("TERM") ) {
+                    log.info("TERM");
+                    break;
+                }
+
+                Thread.sleep(delay);
+
+                log.debug("Sending message " + msg);
+                suc = msg.send(socket);
+                check(suc);
+            }
 
         } catch (ZMQException e) {
             if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()) {
@@ -87,27 +108,16 @@ public class EchoServer implements Runnable {
         } catch (InterruptedException e) {
             log.debug("Interrupted (on sleep).");
         } finally {
+            log.info("Received " + msgCount + " Messages.");
             log.info("Closing socket.");
             socket.close();
             socket = null;
         }
     }
 
-    // echo loop
-    private void loop() throws InterruptedException {
-        while (!Thread.currentThread().isInterrupted()) {
-            ZMsg msg = ZMsg.recvMsg(socket);
-            log.debug("Received Message " + msg);
-
-            if (msg == null) {
-                log.debug("Interrupted (on recv).");
-                break;
-            }
-
-            Thread.sleep(delay);
-
-            msg.send(socket);
-        }
+    private void check(boolean suc) {
+        if (suc) return;
+        throw new IllegalStateException();
     }
 
     /**

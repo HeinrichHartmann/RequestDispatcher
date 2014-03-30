@@ -1,29 +1,28 @@
-package net.hh.RequestDispatcher.Server;
+package net.hh.request_dispatcher;
 
-import net.hh.RequestDispatcher.Callback;
-import net.hh.RequestDispatcher.Dispatcher;
-import net.hh.RequestDispatcher.Service.ZmqService;
-import net.hh.RequestDispatcher.TransferClasses.TestService.TestReply;
-import net.hh.RequestDispatcher.TransferClasses.TestService.TestRequest;
-import org.apache.log4j.BasicConfigurator;
+import net.hh.request_dispatcher.Server.EchoServer;
+import net.hh.request_dispatcher.service.ZmqService;
+import net.hh.request_dispatcher.transfer.test_service.TestDTO;
 import org.junit.*;
+import org.zeromq.ZMQ;
 
 /**
  * Created by hartmann on 3/17/14.
  */
 public class DispatcherTestTimeout {
 
-    private static int DURATION = 1000;
-    private static int GRACE = 100;
+    private static final int DURATION = 10000;
+    private static final int GRACE = 1000;
 
     static EchoServer echoServer;
-    static String echoEndpoint = "tcp://127.0.0.1:60123";
+    static String echoEndpoint = "inproc://127.0.0.1:60123";
+    static ZMQ.Context ctx = ZMQ.context(0);
 
     @BeforeClass
     public static void setupMockServer() throws Exception {
-        BasicConfigurator.configure();
+        // BasicConfigurator.configure();
 
-        echoServer = new EchoServer(echoEndpoint);
+        echoServer = new EchoServer(ctx, echoEndpoint);
         echoServer.setDelay(DURATION);
         echoServer.start();
     }
@@ -39,8 +38,8 @@ public class DispatcherTestTimeout {
     public void setUp() throws Exception {
         // before each Test
         dp = new Dispatcher();
-        dp.registerServiceProvider("ECHO", new ZmqService(echoEndpoint));
-        dp.setDefaultService(TestRequest.class, "ECHO");
+        dp.registerServiceProvider("ECHO", new ZmqService(ctx, echoEndpoint));
+        dp.setDefaultService(TestDTO.class, "ECHO");
     }
 
     @After
@@ -50,14 +49,14 @@ public class DispatcherTestTimeout {
 
     private final String TIMEOUT_MSG = "TIMEOUT";
 
-    // @Test
+    @Test
     public void testTimeOut() throws Exception {
 
         final String[] answer = new String[1];
 
-        dp.execute(new TestRequest(), new Callback<TestReply>(new TestReply()) {
+        dp.execute(new TestDTO(), new Callback<TestDTO>(new TestDTO()) {
             @Override
-            public void onSuccess(TestReply reply) {
+            public void onSuccess(TestDTO reply) {
                 throw new RuntimeException("Not Timed out");
             }
 
@@ -74,13 +73,13 @@ public class DispatcherTestTimeout {
     }
 
 
-    @Test(timeout = 1000)
+    @Test(timeout = DURATION + 5 * GRACE)
     public void testTimeOk() throws Exception {
         final String[] answer = new String[1];
 
-        dp.execute(new TestRequest(), new Callback<TestReply>(new TestReply()) {
+        dp.execute(new TestDTO(), new Callback<TestDTO>(new TestDTO()) {
             @Override
-            public void onSuccess(TestReply reply) {
+            public void onSuccess(TestDTO reply) {
                 answer[0] = "OK";
             }
 
