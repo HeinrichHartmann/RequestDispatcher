@@ -1,6 +1,6 @@
 package net.hh.request_dispatcher;
 
-import net.hh.request_dispatcher.service.ZmqService;
+import net.hh.request_dispatcher.service_adapter.ServiceAdapter;
 import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
@@ -26,7 +26,7 @@ public class Dispatcher {
     private static int oo = Integer.MAX_VALUE;
 
     // holds registered services
-    private final Map<String, ZmqService> serviceInstances = new HashMap<String, ZmqService>();
+    private final Map<String, ServiceAdapter> serviceInstances = new HashMap<String, ServiceAdapter>();
 
     // holds default services for request types
     private final Map<Class, String> defaultService = new HashMap<Class, String>();
@@ -35,9 +35,9 @@ public class Dispatcher {
 
     public Dispatcher() {}
 
-    ////////////////// SERVICE ADMINISTRATION //////////////////
+    ////////////////// ADAPTER ADMINISTRATION //////////////////
 
-    public void registerServiceProvider(String serviceName, ZmqService service) {
+    public void registerServiceAdapter(String serviceName, ServiceAdapter service) {
         if (serviceInstances.containsKey(serviceName)) {
             throw new IllegalArgumentException("Service Already registered");
         }
@@ -46,7 +46,7 @@ public class Dispatcher {
         registerPoller(service);
     }
 
-    private ZmqService getServiceProvider(final String serviceName) {
+    private ServiceAdapter getServiceProvider(final String serviceName) {
         if (! serviceInstances.containsKey(serviceName)){
             throw new IllegalArgumentException("No service provider registered for name " + serviceName);
         }
@@ -162,7 +162,7 @@ public class Dispatcher {
      */
     public void close() {
         log.debug("Dispatcher object.");
-        for (ZmqService s : serviceInstances.values()){
+        for (ServiceAdapter s : serviceInstances.values()){
             s.close();
         }
     }
@@ -171,7 +171,7 @@ public class Dispatcher {
     //////////////////// POLLING //////////////////////////
 
     private final ZMQ.Poller poller = new ZMQ.Poller(5);
-    private final List<ZmqService> pollServiceList = new ArrayList<ZmqService>();
+    private final List<ServiceAdapter> pollServiceList = new ArrayList<ServiceAdapter>();
 
     /**
      * Recieves multipart messages from all open sockets as String [].
@@ -202,8 +202,8 @@ public class Dispatcher {
         }
     }
 
-    private void registerPoller(ZmqService service){
-        poller.register(service.getSocket(), ZMQ.Poller.POLLIN);
+    private void registerPoller(ServiceAdapter service){
+        poller.register(service.getPollItem());
         pollServiceList.add(service);
     }
 

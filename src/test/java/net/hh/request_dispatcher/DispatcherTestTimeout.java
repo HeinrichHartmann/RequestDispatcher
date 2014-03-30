@@ -1,8 +1,7 @@
 package net.hh.request_dispatcher;
 
-import net.hh.request_dispatcher.Server.EchoServer;
-import net.hh.request_dispatcher.service.ZmqService;
-import net.hh.request_dispatcher.transfer.TestDTO;
+import net.hh.request_dispatcher.mock_server.EchoServer;
+import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import org.junit.*;
 import org.zeromq.ZMQ;
 
@@ -28,7 +27,7 @@ public class DispatcherTestTimeout {
 
         // before each Test
         dp = new Dispatcher();
-        dp.registerServiceProvider("ECHO", new ZmqService(ctx, echoEndpoint));
+        dp.registerServiceAdapter("ECHO", new ZmqAdapter(ctx, echoEndpoint));
         dp.setDefaultService(TestDTO.class, "ECHO");
     }
 

@@ -1,8 +1,7 @@
 package net.hh.request_dispatcher;
 
-import net.hh.request_dispatcher.Server.EchoServer;
-import net.hh.request_dispatcher.service.ZmqService;
-import net.hh.request_dispatcher.transfer.TestDTO;
+import net.hh.request_dispatcher.mock_server.EchoServer;
+import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import org.junit.*;
 import org.zeromq.ZMQ;
 
@@ -32,7 +31,7 @@ public class DispatcherTest {
     public void setUp() throws Exception {
         // before each Test
         dp = new Dispatcher();
-        dp.registerServiceProvider("ECHO", new ZmqService(ctx, echoEndpoint));
+        dp.registerServiceAdapter("ECHO", new ZmqAdapter(ctx, echoEndpoint));
         dp.setDefaultService(String.class, "ECHO");
         dp.setDefaultService(TestDTO.class, "ECHO");
     }
@@ -55,7 +54,7 @@ public class DispatcherTest {
         Assert.assertEquals("hi", answer[0]);
     }
 
-    @Test
+    @Test(timeout = 500)
     public void chainedExecute() throws Exception {
         final String[] answer = new String[2];
 
@@ -79,7 +78,7 @@ public class DispatcherTest {
         Assert.assertEquals("msg2", answer[1]);
     }
 
-    @Test
+    @Test(timeout = 500)
     public void testPromise() throws Exception {
         final String[] answer = new String[3];
 
@@ -133,7 +132,7 @@ public class DispatcherTest {
         Assert.assertEquals("promise", answer[2]);
     }
 
-    @Test
+    @Test(timeout = 500)
     public void testEmptyPromise() throws Exception {
         final String[] answer = new String[3];
 

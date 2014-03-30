@@ -1,4 +1,4 @@
-package net.hh.request_dispatcher.service;
+package net.hh.request_dispatcher.service_adapter;
 
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
@@ -8,9 +8,10 @@ import org.zeromq.ZMsg;
 import java.io.Serializable;
 import java.util.Arrays;
 
-public class ZmqService<RequestType extends Serializable, ReplyType extends Serializable>  {
+public class ZmqAdapter<RequestType extends Serializable, ReplyType extends Serializable> implements
+ServiceAdapter<RequestType, ReplyType> {
 
-    private static final Logger log = Logger.getLogger(ZmqService.class);
+    private static final Logger log = Logger.getLogger(ZmqAdapter.class);
 
     private final ZMQ.Context ctx;
 
@@ -18,12 +19,12 @@ public class ZmqService<RequestType extends Serializable, ReplyType extends Seri
 
     protected String endpoint;
 
-    public ZmqService(String endpoint) {
+    public ZmqAdapter(String endpoint) {
         this(ZMQ.context(1), endpoint);
     }
 
-    public ZmqService(ZMQ.Context ctx, String endpoint) {
-        log.debug("Setup ZmqService with DEALER socket for endpoint " + endpoint);
+    public ZmqAdapter(ZMQ.Context ctx, String endpoint) {
+        log.debug("Setup ZmqAdapter with DEALER socket for endpoint " + endpoint);
 
         this.ctx = ctx;
 
@@ -40,6 +41,8 @@ public class ZmqService<RequestType extends Serializable, ReplyType extends Seri
         socket.close();
     }
 
+
+    @Override
     public void send(ZMsg mmsg) {
         log.debug("Sending message " + Arrays.asList(mmsg));
 
@@ -49,6 +52,7 @@ public class ZmqService<RequestType extends Serializable, ReplyType extends Seri
         mmsg.send(socket);
     }
 
+    @Override
     public ZMsg recv() {
         try {
             ZMsg mmsg = ZMsg.recvMsg(socket);
@@ -64,8 +68,9 @@ public class ZmqService<RequestType extends Serializable, ReplyType extends Seri
         }
     }
 
-    public ZMQ.Socket getSocket() {
-        return socket;
+    @Override
+    public ZMQ.PollItem getPollItem() {
+        return new ZMQ.PollItem(socket, ZMQ.Poller.POLLIN);
     }
 
 }

@@ -1,4 +1,4 @@
-package net.hh.request_dispatcher.Server;
+package net.hh.request_dispatcher.mock_server;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;

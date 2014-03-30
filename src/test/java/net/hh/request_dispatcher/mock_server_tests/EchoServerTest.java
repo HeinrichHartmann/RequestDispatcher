@@ -1,6 +1,7 @@
-package net.hh.request_dispatcher.Server;
+package net.hh.request_dispatcher.mock_server_tests;
 
 import junit.framework.Assert;
+import net.hh.request_dispatcher.mock_server.EchoServer;
 import org.apache.log4j.BasicConfigurator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

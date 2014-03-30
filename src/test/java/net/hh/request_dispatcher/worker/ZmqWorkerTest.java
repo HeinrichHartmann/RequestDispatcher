@@ -2,7 +2,9 @@ package net.hh.request_dispatcher.worker;
 
 import net.hh.request_dispatcher.Callback;
 import net.hh.request_dispatcher.Dispatcher;
-import net.hh.request_dispatcher.service.ZmqService;
+import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
+import net.hh.request_dispatcher.server.RequestHandler;
+import net.hh.request_dispatcher.server.ZmqWorker;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -32,7 +34,7 @@ public class ZmqWorkerTest {
         });
 
         dp = new Dispatcher();
-        dp.registerServiceProvider("TEST", new ZmqService(ctx, channel));
+        dp.registerServiceAdapter("TEST", new ZmqAdapter(ctx, channel));
         dp.setDefaultService(String.class, "TEST");
 
         worker.start();
@@ -45,7 +47,7 @@ public class ZmqWorkerTest {
         worker.join();
     }
 
-    @Test
+    @Test(timeout = 500)
     public void testRun() throws Exception {
         final String[] answer = new String[1];
 

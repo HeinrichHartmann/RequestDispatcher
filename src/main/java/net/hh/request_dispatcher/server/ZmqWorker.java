@@ -1,4 +1,4 @@
-package net.hh.request_dispatcher.worker;
+package net.hh.request_dispatcher.server;
 
 import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
