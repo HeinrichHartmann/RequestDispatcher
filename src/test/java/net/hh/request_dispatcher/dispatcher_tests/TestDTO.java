@@ -1,4 +1,4 @@
-package net.hh.request_dispatcher;
+package net.hh.request_dispatcher.dispatcher_tests;
 
 import java.io.Serializable;
 

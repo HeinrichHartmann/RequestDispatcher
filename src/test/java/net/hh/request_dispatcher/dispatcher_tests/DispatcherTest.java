@@ -1,5 +1,7 @@
-package net.hh.request_dispatcher;
+package net.hh.request_dispatcher.dispatcher_tests;
 
+import net.hh.request_dispatcher.Callback;
+import net.hh.request_dispatcher.Dispatcher;
 import net.hh.request_dispatcher.mock_server.EchoServer;
 import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import org.junit.*;

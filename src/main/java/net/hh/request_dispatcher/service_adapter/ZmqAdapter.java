@@ -8,8 +8,8 @@ import org.zeromq.ZMsg;
 import java.io.Serializable;
 import java.util.Arrays;
 
-public class ZmqAdapter<RequestType extends Serializable, ReplyType extends Serializable> implements
-ServiceAdapter<RequestType, ReplyType> {
+public class ZmqAdapter<RequestType extends Serializable, ReplyType extends Serializable>
+        implements ServiceAdapter<RequestType, ReplyType> {
 
     private static final Logger log = Logger.getLogger(ZmqAdapter.class);
 
