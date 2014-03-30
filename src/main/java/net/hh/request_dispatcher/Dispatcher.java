@@ -79,6 +79,7 @@ public class Dispatcher {
      * @param callback
      */
     public void execute(Serializable request, Callback callback) {
+        // TODO: Enforce Request and Reply types
         execute(inferServiceName(request), request, callback);
     }
 

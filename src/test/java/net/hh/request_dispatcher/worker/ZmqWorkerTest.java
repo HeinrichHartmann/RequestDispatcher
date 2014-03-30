@@ -17,34 +17,58 @@ import org.zeromq.ZMQ;
 public class ZmqWorkerTest {
 
     ZMQ.Context ctx;
-    ZmqWorker<String, String> worker;
+    ZmqWorker stringWorker;
+    ZmqWorker exampleTOStringZmqWorker;
     Dispatcher dp;
 
     @Before
     public void setUp() throws Exception {
         ctx = ZMQ.context(0);
 
-        String channel = "inproc://" + this.hashCode();
+        dp = new Dispatcher();
 
-        worker = new ZmqWorker<String, String>(ctx, channel, new RequestHandler<String, String>() {
+        /// SETUP WORKER: String -> String
+
+        String stringChannel = "inproc://string" + this.hashCode();
+
+        stringWorker = new ZmqWorker<String, String>(ctx, stringChannel, new RequestHandler<String, String>() {
             @Override
             public String handleRequest(String request) {
                 return "HelloWorld";
             }
         });
 
-        dp = new Dispatcher();
-        dp.registerServiceAdapter("TEST", new ZmqAdapter(ctx, channel));
-        dp.setDefaultService(String.class, "TEST");
+        dp.registerServiceAdapter("STRING", new ZmqAdapter(ctx, stringChannel));
 
-        worker.start();
+        dp.setDefaultService(String.class, "STRING");
+
+        stringWorker.start();
+
+        /// SETUP WORKER: ReqTO -> ReplyTo
+
+        String exampleChannel = "inproc://example" + this.hashCode();
+
+        exampleTOStringZmqWorker = new ZmqWorker<ReqTO, ReplyTo>(ctx, exampleChannel,
+                new RequestHandler<ReqTO, ReplyTo>() {
+            @Override
+            public ReplyTo handleRequest(ReqTO request) {
+                return new ReplyTo(request.toString());
+            }
+        });
+
+        dp.registerServiceAdapter("EXAMPLE", new ZmqAdapter(ctx, exampleChannel));
+
+        dp.setDefaultService(ReqTO.class, "EXAMPLE");
+
+        exampleTOStringZmqWorker.start();
     }
 
     @After
     public void tearDown() throws Exception {
         dp.close();
         ctx.term();
-        worker.join();
+        stringWorker.join();
+
     }
 
     @Test(timeout = 500)
@@ -60,7 +84,23 @@ public class ZmqWorkerTest {
         });
 
         dp.gatherResults();
-
         Assert.assertEquals("HelloWorld", answer[0]);
+    }
+
+    @Test(timeout = 500)
+    public void testRun2() throws Exception {
+        final String[] answer = new String[1];
+
+        String MSG = "Hi";
+
+        dp.execute(new ReqTO(MSG), new Callback<ReplyTo>(){
+            @Override
+            public void onSuccess(ReplyTo reply) {
+                answer[0] = reply.toString();
+            }
+        });
+
+        dp.gatherResults();
+        Assert.assertEquals(MSG, answer[0]);
     }
 }
