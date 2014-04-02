@@ -3,13 +3,11 @@ package net.hh.request_dispatcher.transfer;
 import java.io.Serializable;
 
 /**
- * Static implementation fo Serializer interface.
+ * Generic serialization interface.
  *
  * Created by hartmann on 4/2/14.
  */
-public class SerializationHelper {
-
-    private static Serializer serializer = new BinarySerializer();
+public interface Serializer {
 
     /**
      * Serialize object to binary blop.
@@ -17,9 +15,7 @@ public class SerializationHelper {
      * @param object
      * @return blop     encoded object.
      */
-    public static byte[] serialize(Serializable object){
-        return serializer.serialize(object);
-    }
+    public byte[] serialize(Serializable object);
 
     /**
      * Create object from binary blop.
@@ -28,9 +24,6 @@ public class SerializationHelper {
      * @param blop
      * @return object
      */
-    public static Object deserialize(byte[] blop) {
-        return serializer.deserialize(blop);
-    }
-
+    public Object deserialize(byte[] blop);
 
 }
