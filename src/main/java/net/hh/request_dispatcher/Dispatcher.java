@@ -1,5 +1,6 @@
 package net.hh.request_dispatcher;
 
+import net.hh.request_dispatcher.server.RequestException;
 import net.hh.request_dispatcher.service_adapter.ServiceAdapter;
 import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
@@ -67,6 +68,18 @@ public class Dispatcher {
         return defaultService.get(request.getClass());
     }
 
+    /**
+     * Convenience methods that registers service adapter directly for the request class.
+     * @param requestClass
+     * @param service
+     */
+    public void registerServiceAdapter(Class requestClass, ServiceAdapter service) {
+        String serviceName = (String) requestClass.getName();
+        registerServiceAdapter(serviceName, service);
+        setDefaultService(requestClass, serviceName);
+    }
+
+
     /////////////////// REQUEST EXECUTION  //////////////////////
 
     /**
@@ -85,7 +98,7 @@ public class Dispatcher {
 
     /**
      * Sends a non-blocking Request to the service specified by serviceName.
-     * The Response will be processed in the callback which has to be implented.
+     * The Response will be processed in the callback which has to be implemented.
      *
      * @param serviceName   service identifier. Has to be registered before usage.
      * @param request       request object that will be serialized and passed to the server
@@ -122,6 +135,11 @@ public class Dispatcher {
         Timer timer = new Timer(timeout);
         timer.start();
 
+        Callback callback = null;
+        ZMsg message = new ZMsg();
+        int id = 0;
+        Serializable reply = null;
+
         // deliver promises that are note dependent on a single callback
         deliverPromises();
 
@@ -129,23 +147,25 @@ public class Dispatcher {
 
             try {
 
-                ZMsg message = pollMessage(timer.timeLeft());
+                message = pollMessage(timer.timeLeft());
 
                 log.debug("Recieved message " + Arrays.asList(message));
 
-                int id      = parseId(message);
-                Serializable reply = parseReply(message);
+                id    = parseId(message);
+                reply = parseReply(message);
     
-                Callback callback = pullCallbackObject(id);
-    
-                callback.onSuccess(reply);
+                callback = pullCallbackObject(id);
+
+                if (reply instanceof RequestException) {
+                    callback.onError((RequestException) reply);
+                } else {
+                    callback.onSuccess(reply);
+                }
 
                 clearDependenciesFromPromises(callback);
                 deliverPromises();
 
-            }
-
-            catch (TimeoutException e) {
+            } catch (TimeoutException e) {
 
                 for (Callback c: pendingCallbacks.values()){
                     c.onTimeOut(e.getMessage());
@@ -154,6 +174,8 @@ public class Dispatcher {
                 pendingCallbacks.clear();
 
                 log.info("SERVER: timeout on the server");
+            } catch (RequestException e) {
+                log.error("Error occured in Worker.", e);
             }
         }
     }
@@ -229,9 +251,12 @@ public class Dispatcher {
         return out;
     }
 
+    private static int callbackCounter = 0;
+
+    // returns a globally unique callback id
     private int generateCallbackId(Callback callback) {
-        // TODO: Make unique
-        return callback.hashCode();
+        return callbackCounter++;
+        // return callback.hashCode();
     }
 
     private boolean hasPendingCallbacks(){

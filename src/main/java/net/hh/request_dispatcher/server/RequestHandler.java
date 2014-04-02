@@ -7,10 +7,9 @@ import java.io.Serializable;
  *
  * Created by hartmann on 3/30/14.
  */
-public interface RequestHandler<
-        RequestType extends Serializable,
-        ReplyType extends Serializable> extends Serializable {
+public interface RequestHandler<RequestType extends Serializable, ReplyType extends Serializable>
+        extends Serializable {
 
-    public ReplyType handleRequest(RequestType request);
+    public ReplyType handleRequest(RequestType request) throws RequestException;
 
 }

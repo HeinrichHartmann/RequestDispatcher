@@ -31,7 +31,8 @@ public class ZmqWorkerTest {
 
         String stringChannel = "inproc://string" + this.hashCode();
 
-        stringWorker = new ZmqWorker<String, String>(ctx, stringChannel, new RequestHandler<String, String>() {
+        stringWorker = new ZmqWorker<String, String>(ctx,
+                stringChannel, new RequestHandler<String, String>() {
             @Override
             public String handleRequest(String request) {
                 return "HelloWorld";
