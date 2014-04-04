@@ -12,14 +12,14 @@ import java.io.Serializable;
 public interface ServiceAdapter<RequestType extends Serializable, ReplyType extends Serializable> extends Closeable {
 
     // TODO: Refacotr to make this Request Type
-    public void send(ZMsg msg);
+    void send(ZMsg msg);
 
     // TODO: Refactor to be usabile in generic event framework.
     // REMAKR: using socket.getFD() does not work for some reason.
-    public ZMQ.PollItem getPollItem();
+    ZMQ.PollItem getPollItem();
 
     // TODO: Refactor to make this ReplyType
-    public ZMsg recv();
+    ZMsg recv();
 
     void close();
 }

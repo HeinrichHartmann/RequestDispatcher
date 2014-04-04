@@ -41,7 +41,6 @@ public class ZmqAdapter<RequestType extends Serializable, ReplyType extends Seri
         socket.close();
     }
 
-
     @Override
     public void send(ZMsg mmsg) {
         log.debug("Sending message " + Arrays.asList(mmsg));

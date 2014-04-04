@@ -10,6 +10,6 @@ import java.io.Serializable;
 public interface RequestHandler<RequestType extends Serializable, ReplyType extends Serializable>
         extends Serializable {
 
-    public ReplyType handleRequest(RequestType request) throws RequestException;
+    public ReplyType handleRequest(RequestType request) throws Exception;
 
 }

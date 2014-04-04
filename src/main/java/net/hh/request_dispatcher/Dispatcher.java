@@ -38,7 +38,7 @@ public class Dispatcher {
 
     ////////////////// ADAPTER ADMINISTRATION //////////////////
 
-    public void registerServiceAdapter(String serviceName, ServiceAdapter service) {
+    public void registerServiceAdapter(final String serviceName, final ServiceAdapter service) {
         if (serviceInstances.containsKey(serviceName)) {
             throw new IllegalArgumentException("Service Already registered");
         }
@@ -56,7 +56,7 @@ public class Dispatcher {
 
     //////////////// DEFAULT SERVICE RESOLUTION ////////////////////
 
-    public void setDefaultService(Class requestClass, String serviceName) {
+    public void setDefaultService(final Class requestClass, final String serviceName) {
         defaultService.put(requestClass, serviceName);
     }
 
@@ -69,16 +69,15 @@ public class Dispatcher {
     }
 
     /**
-     * Convenience methods that registers service adapter directly for the request class.
+     * Convenience method that registers service adapter directly for the request class.
      * @param requestClass
      * @param service
      */
-    public void registerServiceAdapter(Class requestClass, ServiceAdapter service) {
+    public void registerServiceAdapter(final Class requestClass, final ServiceAdapter service) {
         String serviceName = (String) requestClass.getName();
         registerServiceAdapter(serviceName, service);
         setDefaultService(requestClass, serviceName);
     }
-
 
     /////////////////// REQUEST EXECUTION  //////////////////////
 
@@ -91,7 +90,7 @@ public class Dispatcher {
      * @param request
      * @param callback
      */
-    public void execute(Serializable request, Callback callback) {
+    public void execute(final Serializable request, final Callback callback) {
         // TODO: Enforce Request and Reply types
         execute(inferServiceName(request), request, callback);
     }
@@ -104,7 +103,7 @@ public class Dispatcher {
      * @param request       request object that will be serialized and passed to the server
      * @param callback
      */
-    public void execute(String serviceName, Serializable request, Callback callback) {
+    public void execute(final String serviceName, final Serializable request, final Callback callback) {
 
         int id = generateCallbackId(callback);
 
@@ -129,7 +128,7 @@ public class Dispatcher {
      *
      * @param timeout maximal time to wait for replies
      */
-    public void gatherResults(int timeout){
+    public void gatherResults(final int timeout){
         log.debug("Gathering results with timeout " + timeout);
 
         Timer timer = new Timer(timeout);
@@ -204,7 +203,7 @@ public class Dispatcher {
      * @return multipartMessage
      * @throws TimeoutException     if timeout exceeded
      */
-    private ZMsg pollMessage(int timeout) throws TimeoutException {
+    private ZMsg pollMessage(final int timeout) throws TimeoutException {
         log.debug("Polling sockets with timeout " + timeout);
 
         int messageCount = poller.poll(timeout);
@@ -225,7 +224,7 @@ public class Dispatcher {
         }
     }
 
-    private void registerPoller(ServiceAdapter service){
+    private void registerPoller(final ServiceAdapter service){
         poller.register(service.getPollItem());
         pollServiceList.add(service);
     }
@@ -241,11 +240,11 @@ public class Dispatcher {
      * @param callback
      * @return callbackId
      */
-    private void registerCallbackObject(int id, Callback callback){
+    private void registerCallbackObject(final int id, final Callback callback){
         pendingCallbacks.put(id, callback);
     }
 
-    private Callback pullCallbackObject(int callbackId){
+    private Callback pullCallbackObject(final int callbackId){
         Callback out = pendingCallbacks.get(callbackId);
         pendingCallbacks.remove(callbackId);
         return out;
@@ -254,7 +253,7 @@ public class Dispatcher {
     private static int callbackCounter = 0;
 
     // returns a globally unique callback id
-    private int generateCallbackId(Callback callback) {
+    private int generateCallbackId(final Callback callback) {
         return callbackCounter++;
         // return callback.hashCode();
     }

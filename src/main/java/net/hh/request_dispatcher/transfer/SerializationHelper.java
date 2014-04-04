@@ -9,7 +9,7 @@ import java.io.Serializable;
  */
 public class SerializationHelper {
 
-    private static Serializer serializer = new BinarySerializer();
+    private static Serializer serializer = new XmlSerializer();
 
     /**
      * Serialize object to binary blop.

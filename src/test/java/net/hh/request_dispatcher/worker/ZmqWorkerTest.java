@@ -40,7 +40,6 @@ public class ZmqWorkerTest {
         });
 
         dp.registerServiceAdapter("STRING", new ZmqAdapter(ctx, stringChannel));
-
         dp.setDefaultService(String.class, "STRING");
 
         stringWorker.start();
