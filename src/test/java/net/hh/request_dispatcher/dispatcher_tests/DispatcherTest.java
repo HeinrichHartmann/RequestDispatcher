@@ -142,14 +142,12 @@ public class DispatcherTest {
             @Override
             public void run() {
                 answer[0] = "unconditionalPromise";
-
                 dp.execute(new TestDTO(""), new Callback<TestDTO>() {
                     @Override
                     public void onSuccess(TestDTO reply) {
                         answer[1] = "dependentCallback";
                     }
                 });
-
             }
         }
         );
@@ -164,7 +162,7 @@ public class DispatcherTest {
     @Test
     public void testIntByteConv() throws Exception {
         for (int i = 5; i < 5000; i += 235) {
-            Assert.assertEquals(i, Dispatcher.bytes2int(Dispatcher.int2bytes(i)));
+            Assert.assertEquals(i, ZmqAdapter.bytes2int(ZmqAdapter.int2bytes(i)));
         }
     }
 }

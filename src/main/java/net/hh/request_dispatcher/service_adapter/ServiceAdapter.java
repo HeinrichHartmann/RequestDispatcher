@@ -1,25 +1,38 @@
 package net.hh.request_dispatcher.service_adapter;
 
 import org.zeromq.ZMQ;
-import org.zeromq.ZMsg;
 
-import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
  * Created by hartmann on 3/30/14.
  */
-public interface ServiceAdapter<RequestType extends Serializable, ReplyType extends Serializable> extends Closeable {
+public interface ServiceAdapter extends AutoCloseable {
 
-    // TODO: Refacotr to make this Request Type
-    void send(ZMsg msg);
+    /**
+     * Send a request to the remote service associated with the object.
+     * Allows to stick a CallbackId to the request
+     *
+     * @param request       to be sent to the remote service
+     * @param callbackId    id of the callback object to be called on receive
+     * @throws IOException  if an error occures while sending the request
+     */
+    void send(Serializable request, Integer callbackId) throws IOException;
+
+    /**
+     * Blocking receive reply message from the remote service associated with the object.
+     * Returns a pair consisting of the reply object and the CallbackId that was
+     * passed along with the request.
+     *
+     * @return wrappedReply returned message. Null when interrupted.
+     */
+    ReplyWrapper recv();
 
     // TODO: Refactor to be usabile in generic event framework.
     // REMAKR: using socket.getFD() does not work for some reason.
     ZMQ.PollItem getPollItem();
 
-    // TODO: Refactor to make this ReplyType
-    ZMsg recv();
-
-    void close();
+    @Override
+    void close() throws IOException;
 }

@@ -1,14 +1,13 @@
 package net.hh.request_dispatcher;
 
 import net.hh.request_dispatcher.server.RequestException;
+import net.hh.request_dispatcher.service_adapter.ReplyWrapper;
 import net.hh.request_dispatcher.service_adapter.ServiceAdapter;
-import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMsg;
 
+import java.io.IOException;
 import java.io.Serializable;
-import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
@@ -101,16 +100,19 @@ public class Dispatcher {
      *
      * @param serviceName   service identifier. Has to be registered before usage.
      * @param request       request object that will be serialized and passed to the server
-     * @param callback
+     * @param callback      to be executed by gatherResults method on the Reply Object returned by the service
      */
-    public void execute(final String serviceName, final Serializable request, final Callback callback) {
+    public void execute(final String serviceName, final Serializable request, final Callback callback)  {
 
         int id = generateCallbackId(callback);
 
         registerCallbackObject(id, callback);
 
-        getServiceProvider(serviceName).send(encodeMessage(id, request));
-
+        try {
+            getServiceProvider(serviceName).send(request, id);
+        } catch (IOException e) {
+            log.error(e);
+        }
     }
 
     /**
@@ -135,9 +137,7 @@ public class Dispatcher {
         timer.start();
 
         Callback callback = null;
-        ZMsg message = new ZMsg();
-        int id = 0;
-        Serializable reply = null;
+        ReplyWrapper reply = null;
 
         // deliver promises that are note dependent on a single callback
         deliverPromises();
@@ -146,19 +146,16 @@ public class Dispatcher {
 
             try {
 
-                message = pollMessage(timer.timeLeft());
+                reply = pollMessage(timer.timeLeft());
 
-                log.debug("Recieved message " + Arrays.asList(message));
+                log.debug("Recieved message " + reply);
 
-                id    = parseId(message);
-                reply = parseReply(message);
-    
-                callback = pullCallbackObject(id);
+                callback = pullCallbackObject(reply.getCallbackId());
 
-                if (reply instanceof RequestException) {
-                    callback.onError((RequestException) reply);
+                if (reply.isError()) {
+                    callback.onError((RequestException) reply.getPayload());
                 } else {
-                    callback.onSuccess(reply);
+                    callback.onSuccess(reply.getPayload());
                 }
 
                 clearDependenciesFromPromises(callback);
@@ -182,7 +179,7 @@ public class Dispatcher {
     /**
      * Closes sockets of all registered services
      */
-    public void close() {
+    public void close() throws IOException {
         log.debug("Dispatcher object.");
         for (ServiceAdapter s : serviceInstances.values()){
             s.close();
@@ -200,10 +197,10 @@ public class Dispatcher {
      *
      * @param timeout               maximal time to wait for messages
      *                              in milliseconds
-     * @return multipartMessage
+     * @return reply                Wrapped Reply from socket
      * @throws TimeoutException     if timeout exceeded
      */
-    private ZMsg pollMessage(final int timeout) throws TimeoutException {
+    private ReplyWrapper pollMessage(final int timeout) throws TimeoutException {
         log.debug("Polling sockets with timeout " + timeout);
 
         int messageCount = poller.poll(timeout);
@@ -262,37 +259,6 @@ public class Dispatcher {
         return ! pendingCallbacks.isEmpty();
     }
 
-    ////////////// MESSAGE FRAMING ////////////
-
-    /**
-     * Generate ZMQ Message from request and callback id
-     *
-     * @param callbackId
-     * @param request
-     * @return message
-     */
-    private ZMsg encodeMessage(int callbackId, Serializable request) {
-        ZMsg out = new ZMsg();
-        out.push(SerializationHelper.serialize(request));
-        out.push(int2bytes(callbackId));
-        return out;
-    }
-
-    private int parseId(ZMsg message) {
-        return bytes2int(message.peekFirst().getData());
-    }
-
-    private Serializable parseReply(ZMsg message) {
-        return (Serializable) SerializationHelper.deserialize(message.peekLast().getData());
-    }
-
-    public static byte[] int2bytes(int i) {
-        return BigInteger.valueOf(i).toByteArray();
-    }
-
-    public static int bytes2int(byte[] data) {
-        return new BigInteger(data).intValue();
-    }
 
     ////////////// TIMEOUT ////////////
 

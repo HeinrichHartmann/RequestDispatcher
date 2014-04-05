@@ -28,8 +28,8 @@ public class SerializationHelper {
      * @param blop
      * @return object
      */
-    public static Object deserialize(byte[] blop) {
-        return serializer.deserialize(blop);
+    public static Serializable deserialize(byte[] blop) {
+        return (Serializable) serializer.deserialize(blop);
     }
 
 

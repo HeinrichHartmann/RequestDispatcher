@@ -1,15 +1,16 @@
 package net.hh.request_dispatcher.service_adapter;
 
+import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
+import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
 import org.zeromq.ZMsg;
 
 import java.io.Serializable;
-import java.util.Arrays;
+import java.math.BigInteger;
 
-public class ZmqAdapter<RequestType extends Serializable, ReplyType extends Serializable>
-        implements ServiceAdapter<RequestType, ReplyType> {
+public class ZmqAdapter implements ServiceAdapter {
 
     private static final Logger log = Logger.getLogger(ZmqAdapter.class);
 
@@ -42,28 +43,49 @@ public class ZmqAdapter<RequestType extends Serializable, ReplyType extends Seri
     }
 
     @Override
-    public void send(ZMsg mmsg) {
-        log.debug("Sending message " + Arrays.asList(mmsg));
+    public void send(Serializable request, Integer callbackId) {
+        ZMsg out = new ZMsg();
 
-        // Add empty frame as REQ envelope
-        mmsg.push(new byte[0]);
+        out.push(SerializationHelper.serialize(request));
+        out.push(int2bytes(callbackId));
+        out.push(new byte[0]); // Add empty frame as REQ envelope
 
-        mmsg.send(socket);
+        out.send(socket);
     }
 
+
     @Override
-    public ZMsg recv() {
+    public ReplyWrapper recv() {
         try {
-            ZMsg mmsg = ZMsg.recvMsg(socket);
+            ZMsg message = ZMsg.recvMsg(socket);
+            log.trace("Received message " + message);
 
-            // Remove REP envelope
-            mmsg.pollFirst();
+            ZFrame[] parts = message.toArray(new ZFrame[3]);
 
-            return mmsg;
+            // Expect message to have three parts:
+            // 0. Empty Delimiter Frame
+            // 1. Serialized callback ID
+            // 2. Serialized payload
+
+            if (parts.length != 3) {
+                throw new IllegalArgumentException("Wrong number of Frames. Expected 3.");
+            }
+            if (parts[0].size() != 0) {
+                throw new IllegalStateException("First frame is not empty.");
+            }
+
+            return new ReplyWrapper(
+                SerializationHelper.deserialize(parts[2].getData()),
+                bytes2int(parts[1].getData())
+                );
         } catch (ZMQException e) {
-            if (e.getErrorCode() == ZMQ.Error.ETERM.getCode() );
-            socket.close();
-            return null;
+            if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
+                log.info("Received ETERM exepction. Closing socket.");
+                socket.close();
+                return null;
+            } else {
+                throw e;
+            }
         }
     }
 
@@ -71,5 +93,14 @@ public class ZmqAdapter<RequestType extends Serializable, ReplyType extends Seri
     public ZMQ.PollItem getPollItem() {
         return new ZMQ.PollItem(socket, ZMQ.Poller.POLLIN);
     }
+
+    public static byte[] int2bytes(int i) {
+        return BigInteger.valueOf(i).toByteArray();
+    }
+
+    public static int bytes2int(byte[] data) {
+        return new BigInteger(data).intValue();
+    }
+
 
 }
