@@ -1,8 +1,6 @@
 RequestDispatcher
 =================
-<div style="float:right">
 [![Build Status](https://travis-ci.org/HeinrichHartmann/RequestDispatcher.svg?branch=master)](https://travis-ci.org/HeinrichHartmann/RequestDispatcher)
-</div>
 
 Java library for dispatching request to extrenal services over ZeroMQ
 sockets.
