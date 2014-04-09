@@ -103,10 +103,12 @@ public class Dispatcher {
      * @param callback      to be executed by gatherResults method on the Reply Object returned by the service
      */
     public void execute(final String serviceName, final Serializable request, final Callback callback)  {
+        int id = 0;
 
-        int id = generateCallbackId(callback);
-
-        registerCallbackObject(id, callback);
+        if (callback != null) {
+            id = generateCallbackId(callback);
+            registerCallbackObject(id, callback);
+        }
 
         try {
             getServiceProvider(serviceName).send(request, id);
@@ -171,6 +173,11 @@ public class Dispatcher {
                 log.debug("Recieved message " + reply);
 
                 callback = pullCallbackObject(reply.getCallbackId());
+
+                if (callback == null) {
+                    log.warn("No callback for message" + reply);
+                    continue;
+                }
 
                 if (reply.isError()) {
                     callback.onError((RequestException) reply.getPayload());
