@@ -11,7 +11,7 @@ import java.io.Serializable;
 public interface ServiceAdapter extends AutoCloseable {
 
     /**
-     * Send a request to the remote service associated with the object.
+     * Non-blocking send request to the remote service associated with the object.
      * Allows to stick a CallbackId to the request
      *
      * @param request       to be sent to the remote service
@@ -29,7 +29,17 @@ public interface ServiceAdapter extends AutoCloseable {
      */
     ReplyWrapper recv();
 
-    // TODO: Refactor to be usabile in generic event framework.
+    /**
+     * Blocking send request and receive associated reply from the remote service.
+     *
+     * @param request       to be sent to the service
+     * @param timeout       timeout in MS
+     * @return response     response from the remote service. null on timeout
+     * @throws IOException
+     */
+    Serializable sendSync(Serializable request, int timeout) throws IOException;
+
+    // TODO: Refactor to be usable in generic event framework.
     // REMAKR: using socket.getFD() does not work for some reason.
     ZMQ.PollItem getPollItem();
 

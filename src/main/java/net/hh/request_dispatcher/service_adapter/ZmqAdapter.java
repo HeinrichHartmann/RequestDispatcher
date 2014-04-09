@@ -7,6 +7,7 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
 import org.zeromq.ZMsg;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 
@@ -16,7 +17,9 @@ public class ZmqAdapter implements ServiceAdapter {
 
     private final ZMQ.Context ctx;
 
-    private final ZMQ.Socket socket;
+    private final ZMQ.Socket asyncSocket; // for use in send() / recv()
+    private final ZMQ.Socket syncSocket;  // for use in sendSync()
+    private final ZMQ.Poller syncPoller = new ZMQ.Poller(1);
 
     protected String endpoint;
 
@@ -25,21 +28,28 @@ public class ZmqAdapter implements ServiceAdapter {
     }
 
     public ZmqAdapter(ZMQ.Context ctx, String endpoint) {
-        log.debug("Setup ZmqAdapter with DEALER socket for endpoint " + endpoint);
+        log.debug("Setup ZmqAdapter with two DEALER sockets for endpoint " + endpoint);
 
         this.ctx = ctx;
-
         this.endpoint = endpoint;
-        this.socket = ctx.socket(ZMQ.DEALER);
 
-        this.socket.setHWM(1000);
-        socket.setLinger(100);
-        socket.connect(endpoint);
+        asyncSocket = ctx.socket(ZMQ.DEALER);
+        asyncSocket.setLinger(100);
+        asyncSocket.setHWM(1000);
+        asyncSocket.connect(endpoint);
+
+        syncSocket = ctx.socket(ZMQ.DEALER);
+        syncSocket.setLinger(100);
+        syncSocket.setHWM(10);
+        syncSocket.connect(endpoint);
+
+        syncPoller.register(syncSocket, ZMQ.Poller.POLLIN);
     }
 
     public void close() {
         log.info("Closing Sockets.");
-        socket.close();
+        asyncSocket.close();
+        syncSocket.close();
     }
 
     @Override
@@ -50,12 +60,37 @@ public class ZmqAdapter implements ServiceAdapter {
         out.push(int2bytes(callbackId));
         out.push(new byte[0]); // Add empty frame as REQ envelope
 
-        out.send(socket);
+        out.send(asyncSocket);
     }
 
 
     @Override
     public ReplyWrapper recv() {
+        return _recv(asyncSocket);
+    }
+
+    @Override
+    public Serializable sendSync(Serializable request, int timeout) throws IOException {
+        log.debug("Called sendSync()");
+
+        ZMsg out = new ZMsg();
+        out.push(SerializationHelper.serialize(request));
+        out.push(int2bytes(0)); // Generate a valid Callback ID
+        out.push(new byte[0]);  // Add empty frame as REQ envelope
+        out.send(syncSocket);
+
+        log.trace("Message sent. Polling.");
+        int recvCount = syncPoller.poll(timeout);
+
+        if (recvCount == 0) return null; // timeout
+
+        ReplyWrapper answer = _recv(syncSocket);
+
+        return answer.getPayload();
+    }
+
+
+    private ReplyWrapper _recv(ZMQ.Socket socket) {
         try {
             ZMsg message = ZMsg.recvMsg(socket);
             log.trace("Received message " + message);
@@ -75,9 +110,9 @@ public class ZmqAdapter implements ServiceAdapter {
             }
 
             return new ReplyWrapper(
-                SerializationHelper.deserialize(parts[2].getData()),
-                bytes2int(parts[1].getData())
-                );
+                    SerializationHelper.deserialize(parts[2].getData()),
+                    bytes2int(parts[1].getData())
+            );
         } catch (ZMQException e) {
             if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
                 log.info("Received ETERM exepction. Closing socket.");
@@ -89,9 +124,10 @@ public class ZmqAdapter implements ServiceAdapter {
         }
     }
 
+
     @Override
     public ZMQ.PollItem getPollItem() {
-        return new ZMQ.PollItem(socket, ZMQ.Poller.POLLIN);
+        return new ZMQ.PollItem(asyncSocket, ZMQ.Poller.POLLIN);
     }
 
     public static byte[] int2bytes(int i) {
@@ -101,6 +137,7 @@ public class ZmqAdapter implements ServiceAdapter {
     public static int bytes2int(byte[] data) {
         return new BigInteger(data).intValue();
     }
+
 
 
 }

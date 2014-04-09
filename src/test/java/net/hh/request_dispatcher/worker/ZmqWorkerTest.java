@@ -87,6 +87,7 @@ public class ZmqWorkerTest {
         Assert.assertEquals("HelloWorld", answer[0]);
     }
 
+
     @Test(timeout = 500)
     public void testRun2() throws Exception {
         final String[] answer = new String[1];
@@ -103,4 +104,16 @@ public class ZmqWorkerTest {
         dp.gatherResults();
         Assert.assertEquals(MSG, answer[0]);
     }
+
+
+    @Test(timeout = 500)
+    public void testSync() throws Exception {
+        String MSG = "Hi";
+
+        String answer = (String) dp.executeSync(MSG, 100);
+
+        Assert.assertEquals("HelloWorld", answer);
+    }
+
+
 }

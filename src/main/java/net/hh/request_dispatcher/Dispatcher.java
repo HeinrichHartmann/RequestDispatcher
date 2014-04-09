@@ -115,6 +115,22 @@ public class Dispatcher {
         }
     }
 
+
+    public Serializable executeSync(final Serializable request, int timeout) {
+        return executeSync(inferServiceName(request), request, timeout);
+    }
+
+    public Serializable executeSync(final String serviceName, final Serializable request, final int timeout)  {
+        try {
+            return getServiceProvider(serviceName).sendSync(request, timeout);
+        } catch (IOException e) {
+            log.error(e);
+        }
+        return null;
+    }
+
+
+
     /**
      * Listens on sockets and executes appropriate callbacks.
      * Blocks until all Replies are received.
@@ -248,7 +264,10 @@ public class Dispatcher {
 
     private static int callbackCounter = 0;
 
-    // returns a globally unique callback id
+    /**
+     *  Returns a globally unique callback id
+     *  Has to be able to handle null as input.
+     */
     private int generateCallbackId(final Callback callback) {
         return callbackCounter++;
         // return callback.hashCode();
@@ -340,7 +359,7 @@ public class Dispatcher {
 
         /**
          * Execute stored callback.
-
+         *
          * Throws IllegalStateException if called more than once.
          */
         public void keep() {
