@@ -8,8 +8,6 @@ import net.hh.request_dispatcher.server.ZmqWorkerProxy;
 import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
 import org.zeromq.ZMQ;
 
 import java.util.HashSet;
@@ -18,7 +16,6 @@ import java.util.Set;
 /**
  * Created by hartmann on 4/6/14.
  */
-@RunWith(MockitoJUnitRunner.class)
 public class ZmqWorkerProxyTest {
 
     private final String inputChannel = "inproc://proxyinput";
