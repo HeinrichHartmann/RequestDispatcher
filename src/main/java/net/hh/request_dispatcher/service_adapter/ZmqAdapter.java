@@ -1,5 +1,6 @@
 package net.hh.request_dispatcher.service_adapter;
 
+import net.hh.request_dispatcher.server.RequestException;
 import net.hh.request_dispatcher.transfer.SerializationHelper;
 import org.apache.log4j.Logger;
 import org.zeromq.ZFrame;
@@ -7,7 +8,6 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
 import org.zeromq.ZMsg;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 
@@ -70,7 +70,7 @@ public class ZmqAdapter implements ServiceAdapter {
     }
 
     @Override
-    public Serializable sendSync(Serializable request, int timeout) throws IOException {
+    public Serializable sendSync(Serializable request, int timeout) throws RequestException {
         log.debug("Called sendSync()");
 
         ZMsg out = new ZMsg();
@@ -85,6 +85,8 @@ public class ZmqAdapter implements ServiceAdapter {
         if (recvCount == 0) return null; // timeout
 
         ReplyWrapper answer = _recv(syncSocket);
+
+        if (answer.isError()) throw (RequestException) answer.getPayload();
 
         return answer.getPayload();
     }

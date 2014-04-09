@@ -2,6 +2,7 @@ package net.hh.request_dispatcher.worker;
 
 import net.hh.request_dispatcher.Callback;
 import net.hh.request_dispatcher.Dispatcher;
+import net.hh.request_dispatcher.server.RequestException;
 import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import net.hh.request_dispatcher.server.RequestHandler;
 import net.hh.request_dispatcher.server.ZmqWorker;
@@ -18,6 +19,7 @@ public class ZmqWorkerTest {
 
     ZMQ.Context ctx;
     ZmqWorker stringWorker;
+    ZmqWorker errorWorker;
     ZmqWorker exampleTOStringZmqWorker;
     Dispatcher dp;
 
@@ -38,6 +40,7 @@ public class ZmqWorkerTest {
                 return "HelloWorld";
             }
         });
+
 
         dp.registerServiceAdapter("STRING", new ZmqAdapter(ctx, stringChannel));
         dp.setDefaultService(String.class, "STRING");
@@ -61,6 +64,22 @@ public class ZmqWorkerTest {
         dp.setDefaultService(ReqTO.class, "EXAMPLE");
 
         exampleTOStringZmqWorker.start();
+
+        /// SETUP WORKER: String -> ERROR
+
+        String errorChannel = "inproc://error" + this.hashCode();
+
+        errorWorker = new ZmqWorker<String, String>(ctx,
+                stringChannel, new RequestHandler<String, String>() {
+            @Override
+            public String handleRequest(String request) throws Exception {
+                throw new Exception("ERROR");
+            }
+        });
+
+        dp.registerServiceAdapter("ERROR", new ZmqAdapter(ctx, stringChannel));
+        errorWorker.start();
+
     }
 
     @After
@@ -113,6 +132,13 @@ public class ZmqWorkerTest {
         String answer = (String) dp.executeSync(MSG, 100);
 
         Assert.assertEquals("HelloWorld", answer);
+    }
+
+    @Test(timeout = 500, expected = RequestException.class)
+    public void testSyncError() throws Exception {
+
+        String answer = (String) dp.executeSync("ERROR","REQEST", 100);
+
     }
 
 

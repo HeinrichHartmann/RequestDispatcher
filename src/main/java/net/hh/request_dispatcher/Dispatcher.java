@@ -115,20 +115,25 @@ public class Dispatcher {
         }
     }
 
-
-    public Serializable executeSync(final Serializable request, int timeout) {
+    /**
+     * Shortcut for executeSync(serivceName, request, timeout)
+     */
+    public Serializable executeSync(final Serializable request, int timeout) throws RequestException {
         return executeSync(inferServiceName(request), request, timeout);
     }
 
-    public Serializable executeSync(final String serviceName, final Serializable request, final int timeout)  {
-        try {
-            return getServiceProvider(serviceName).sendSync(request, timeout);
-        } catch (IOException e) {
-            log.error(e);
-        }
-        return null;
-    }
 
+    /**
+     * Blocking synchronus call to background service.
+     * @param serviceName   name of service to be called
+     * @param request       request payload.
+     * @param timeout       timeout in ms.
+     * @return response     returned result. Null on timeout.
+     * @throws RequestException
+     */
+    public Serializable executeSync(final String serviceName, final Serializable request, final int timeout) throws RequestException {
+        return getServiceProvider(serviceName).sendSync(request, timeout);
+    }
 
 
     /**

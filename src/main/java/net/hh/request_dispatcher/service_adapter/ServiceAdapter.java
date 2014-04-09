@@ -1,5 +1,6 @@
 package net.hh.request_dispatcher.service_adapter;
 
+import net.hh.request_dispatcher.server.RequestException;
 import org.zeromq.ZMQ;
 
 import java.io.IOException;
@@ -37,7 +38,7 @@ public interface ServiceAdapter extends AutoCloseable {
      * @return response     response from the remote service. null on timeout
      * @throws IOException
      */
-    Serializable sendSync(Serializable request, int timeout) throws IOException;
+    Serializable sendSync(Serializable request, int timeout) throws RequestException;
 
     // TODO: Refactor to be usable in generic event framework.
     // REMAKR: using socket.getFD() does not work for some reason.
