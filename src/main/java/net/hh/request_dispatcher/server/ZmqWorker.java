@@ -20,12 +20,10 @@ import java.io.Serializable;
 public class ZmqWorker<RequestType extends Serializable, ReplyType extends Serializable>
         extends Thread implements AutoCloseable {
 
-
-
     private static final Logger log = Logger.getLogger(ZmqWorker.class);
 
     private final RequestHandler<RequestType, ReplyType> handler;
-    private final ZMQ.Socket socket;
+    private ZMQ.Socket socket;
 
     /**
      * Creates ZmqWorker Thread object.
@@ -63,9 +61,15 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
         this.setName("ZmqWorker{" + endpoint + "}");
     }
 
+    public void setWorkSocket(ZMQ.Socket socket) {
+        this.socket = socket;
+    }
+
 
     /**
      * Closes Zmq Socket.
+     *
+     * WARNING: This does not necessarily shut down the worker thread.
      */
     @Override
     public void close()
@@ -156,5 +160,6 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
         log.info("Closing socket.");
         socket.close();
     }
+
 }
 

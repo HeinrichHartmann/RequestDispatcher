@@ -5,11 +5,11 @@ import java.io.Serializable;
 /**
  * Created by hartmann on 3/30/14.
  */
-public class ReplyTo implements Serializable {
+public class RepTO implements Serializable {
 
     private final String payload;
 
-    public ReplyTo(String payload) {
+    public RepTO(String payload) {
         this.payload = payload;
     }
 

@@ -1,4 +1,4 @@
-package net.hh.request_dispatcher.worker;
+package net.hh.request_dispatcher.dispatcher_tests;
 
 import net.hh.request_dispatcher.Callback;
 import net.hh.request_dispatcher.Dispatcher;

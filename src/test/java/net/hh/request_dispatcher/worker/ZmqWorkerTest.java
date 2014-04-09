@@ -44,15 +44,15 @@ public class ZmqWorkerTest {
 
         stringWorker.start();
 
-        /// SETUP WORKER: ReqTO -> ReplyTo
+        /// SETUP WORKER: ReqTO -> RepTO
 
         String exampleChannel = "inproc://example" + this.hashCode();
 
-        exampleTOStringZmqWorker = new ZmqWorker<ReqTO, ReplyTo>(ctx, exampleChannel,
-                new RequestHandler<ReqTO, ReplyTo>() {
+        exampleTOStringZmqWorker = new ZmqWorker<ReqTO, RepTO>(ctx, exampleChannel,
+                new RequestHandler<ReqTO, RepTO>() {
             @Override
-            public ReplyTo handleRequest(ReqTO request) {
-                return new ReplyTo(request.toString());
+            public RepTO handleRequest(ReqTO request) {
+                return new RepTO(request.toString());
             }
         });
 
@@ -93,9 +93,9 @@ public class ZmqWorkerTest {
 
         String MSG = "Hi";
 
-        dp.execute(new ReqTO(MSG), new Callback<ReplyTo>(){
+        dp.execute(new ReqTO(MSG), new Callback<RepTO>(){
             @Override
-            public void onSuccess(ReplyTo reply) {
+            public void onSuccess(RepTO reply) {
                 answer[0] = reply.toString();
             }
         });
