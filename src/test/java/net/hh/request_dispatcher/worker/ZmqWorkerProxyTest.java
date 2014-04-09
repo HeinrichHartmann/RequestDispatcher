@@ -1,19 +1,19 @@
 package net.hh.request_dispatcher.worker;
 
-import junit.framework.Assert;
 import net.hh.request_dispatcher.Callback;
 import net.hh.request_dispatcher.Dispatcher;
 import net.hh.request_dispatcher.server.RequestHandler;
 import net.hh.request_dispatcher.server.ZmqWorker;
 import net.hh.request_dispatcher.server.ZmqWorkerProxy;
 import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.zeromq.ZMQ;
 
-import static org.mockito.Mockito.verify;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created by hartmann on 4/6/14.
@@ -21,28 +21,46 @@ import static org.mockito.Mockito.verify;
 @RunWith(MockitoJUnitRunner.class)
 public class ZmqWorkerProxyTest {
 
-    private ZMQ.Context ctx = ZMQ.context(1);
-    private String inputChannel = "ipc://proxyinput";
-    private ZmqWorkerProxy proxy = new ZmqWorkerProxy(inputChannel);
+    private final String inputChannel = "inproc://proxyinput";
+    private final ZmqWorkerProxy proxy = new ZmqWorkerProxy(inputChannel);
+    private final ZMQ.Context ctx = proxy.getContext();
 
-    @Mock
-    private ZmqWorker<ReqTO, RepTO> mockWorker;
+    @Test(timeout = 1000)
+    public void testStartStop() throws Exception {
 
-    @Test
-    public void testAddWorkers() throws Exception {
-        Assert.assertTrue(proxy.add(mockWorker));
+        int NUM_WORKERS = 2;
+
+        for (int i = 0; i < NUM_WORKERS; i++) {
+            final int j = i;
+            proxy.add(new ZmqWorker<String, String>(
+                    null,
+                    new RequestHandler<String, String>() {
+                        @Override
+                        public String handleRequest(String request) {
+                            return "" + j;
+                        }
+                    })
+            );
+        }
 
         proxy.startWorkers();
 
-        verify(mockWorker).start();
+        proxy.doProxyBackground();
 
-        Assert.assertTrue(proxy.remove(mockWorker));
+        // Thread.sleep(200); // wait a little while
+
+        // proxy.stopWorkers();
+
+
     }
 
-    @Test
+    @Test(timeout = 1000)
     public void testProxy() throws Exception {
 
-        for (int i = 0; i < 5; i++) {
+        int NUM_WORKERS = 10;
+        int NUM_REQUESTS = NUM_WORKERS * 3;
+
+        for (int i = 0; i < NUM_WORKERS; i++) {
             final int j = i;
             proxy.add(new ZmqWorker<String, String>(
                     null,
@@ -66,19 +84,27 @@ public class ZmqWorkerProxyTest {
         /// SETUP WORKER: String -> String
         dp.registerServiceAdapter(String.class, new ZmqAdapter(ctx, inputChannel));
 
-        for (int i = 0; i < 100; i++) {
-            dp.execute("Hi", new Callback<String>() {
+        final Set<String> answers = new HashSet<String>(NUM_WORKERS);
+
+        for (int i = 0; i < NUM_REQUESTS; i++) {
+            dp.execute("", new Callback<String>() {
                 @Override
                 public void onSuccess(String reply) {
-                    System.out.println(reply);
+                    answers.add(reply);
                 }
             });
         }
 
         dp.gatherResults();
+        dp.close();
 
         Thread.sleep(100);
 
-        proxy.stopWorkers();
+        for (int i = 0; i < NUM_WORKERS; i++) {
+            System.out.println("Checking: " + i);
+            Assert.assertTrue(answers.contains("" + i));
+        }
+
+        // proxy.stopWorkers();
     }
 }

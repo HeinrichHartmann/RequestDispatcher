@@ -27,10 +27,11 @@ public class ZmqWorkerProxy {
     private final ZMQ.Socket payloadSocket;
     private final ZMQ.Socket controlSocket;
 
+    // Internal state management
     private enum State {
-        created,
-        started,
-        stopped
+        created,    // after constructor is called
+        started,    // after startWorkers() was called
+        stopped     // after stopWorkers() was called
     }
     private State state = State.created;
 
@@ -44,17 +45,17 @@ public class ZmqWorkerProxy {
         this.ctx = ZMQ.context(1);
 
         outsideSocket = ctx.socket(ZMQ.ROUTER);
-        outsideSocket.setLinger(1000);
+        outsideSocket.setLinger(100);
         outsideSocket.setHWM(1000);
         outsideSocket.bind(inputChannel);
 
         payloadSocket = ctx.socket(ZMQ.DEALER);
-        payloadSocket.setLinger(1000);
+        payloadSocket.setLinger(100);
         payloadSocket.setHWM(1000);
         payloadSocket.bind(WORKER_PAYLOAD_CHANNEL);
 
         controlSocket = ctx.socket(ZMQ.PUB);
-        controlSocket.setLinger(1000);
+        controlSocket.setLinger(100);
         controlSocket.setHWM(1000);
         controlSocket.bind(WORKER_CONTROL_CHANNEL);
     }
@@ -129,6 +130,16 @@ public class ZmqWorkerProxy {
         }).start();
     }
 
+    /**
+     * The context is managed by the ProxyWorker.
+     * I.e. stopWorkers() calls ctx.term()
+     *
+     * @return ctx
+     */
+    public ZMQ.Context getContext() {
+        return ctx;
+    }
+
     //////////////////////  SET INTERFACE IMPLEMENTATION ////////////////////////////
 
     /**
@@ -172,6 +183,8 @@ public class ZmqWorkerProxy {
     private void closeSockets() {
         log.trace("Closing internal sockets.");
         outsideSocket.close();
+
+        //TODO: Handle proxyLoop Shutdown properly.
         controlSocket.close();
         payloadSocket.close();
     }

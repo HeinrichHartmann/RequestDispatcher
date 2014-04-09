@@ -15,7 +15,7 @@ import org.zeromq.ZMQ;
  */
 public class DispatcherErrorTest {
 
-    @Test
+    @Test(timeout = 1000)
     public void testErrorHandling() throws Exception {
         final String[] answer = new String[3];
 
