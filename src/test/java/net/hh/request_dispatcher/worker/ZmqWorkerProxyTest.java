@@ -22,7 +22,7 @@ public class ZmqWorkerProxyTest {
     private final ZmqWorkerProxy proxy = new ZmqWorkerProxy(inputChannel);
     private final ZMQ.Context ctx = proxy.getContext();
 
-    @Test(timeout = 1000)
+    @Test //(timeout = 2000)
     public void testStartStop() throws Exception {
 
         int NUM_WORKERS = 2;
@@ -30,7 +30,6 @@ public class ZmqWorkerProxyTest {
         for (int i = 0; i < NUM_WORKERS; i++) {
             final int j = i;
             proxy.add(new ZmqWorker<String, String>(
-                    null,
                     new RequestHandler<String, String>() {
                         @Override
                         public String handleRequest(String request) {
@@ -42,25 +41,19 @@ public class ZmqWorkerProxyTest {
 
         proxy.startWorkers();
 
-        proxy.doProxyBackground();
-
-        // Thread.sleep(200); // wait a little while
-
-        // proxy.stopWorkers();
-
+        proxy.shutdown();
 
     }
 
-    @Test(timeout = 1000)
+    @Test // (timeout = 2000)
     public void testProxy() throws Exception {
 
-        int NUM_WORKERS = 10;
+        int NUM_WORKERS = 5;
         int NUM_REQUESTS = NUM_WORKERS * 3;
 
         for (int i = 0; i < NUM_WORKERS; i++) {
             final int j = i;
             proxy.add(new ZmqWorker<String, String>(
-                    null,
                     new RequestHandler<String, String>() {
                         @Override
                         public String handleRequest(String request) {
@@ -72,7 +65,6 @@ public class ZmqWorkerProxyTest {
 
         proxy.startWorkers();
 
-        proxy.doProxyBackground();
 
         /////////////// SEND REQUESTS /////////////////////
 
@@ -102,6 +94,6 @@ public class ZmqWorkerProxyTest {
             Assert.assertTrue(answers.contains("" + i));
         }
 
-        // proxy.stopWorkers();
+        proxy.shutdown();
     }
 }
