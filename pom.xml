@@ -1,5 +1,18 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+      <groupId>de.metalcon</groupId>
+      <artifactId>pom</artifactId>
+      <version>0.0.1</version>
+    </parent>
+
+    <repositories>
+      <!-- Metalcon repository to resolve dependencies from -->
+      <repository>
+        <id>metalcon-depend</id>
+        <url>http://develop.metalcon.de:8080/mvn/</url>
+      </repository>
+    </repositories>
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.hh</groupId>
     <artifactId>RequestDispatcher</artifactId>
