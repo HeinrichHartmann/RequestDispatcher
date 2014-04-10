@@ -27,7 +27,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
     private ZMQ.Socket controlSocket = null; //mutable.
 
     /**
-     * @param handler           method to execute on work
+     * @param handler method to execute on work
      */
     public ZmqWorker(final RequestHandler<RequestType, ReplyType> handler) {
         super("ZmqWorker");
@@ -35,9 +35,9 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
     }
 
     /**
-     * @param workSocket        socket to listen for work
-     * @param controlSocket     socket to listen for control messages
-     * @param handler           method to execute on work
+     * @param workSocket    socket to listen for work
+     * @param controlSocket socket to listen for control messages
+     * @param handler       method to execute on work
      */
     public ZmqWorker(final ZMQ.Socket workSocket, final ZMQ.Socket controlSocket, final RequestHandler<RequestType, ReplyType> handler) {
         super("ZmqWorker");
@@ -56,9 +56,9 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
      * incoming request, passes the request object to the request handler,
      * serializes the result and sends it back to the origin of the request.
      *
-     * @param ctx           enclosing Zmq Context
-     * @param workEndpoint  to listen on for messages
-     * @param handler   requests are passed to handleRequest() method.
+     * @param ctx          enclosing Zmq Context
+     * @param workEndpoint to listen on for messages
+     * @param handler      requests are passed to handleRequest() method.
      */
     public ZmqWorker(final ZMQ.Context ctx,
                      final String workEndpoint,
@@ -139,67 +139,67 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
     @Override
     public void run() {
         try {
-        log.info("Called run() on " + this);
-        if ( workSocket == null || controlSocket == null ) {
-            throw new IllegalStateException("Sockets not initialized");
-        }
+            log.info("Called run() on " + this);
+            if (workSocket == null || controlSocket == null) {
+                throw new IllegalStateException("Sockets not initialized");
+            }
 
-        byte[] requestPayload = new byte[0];
-        RequestType request = null;
-        ReplyType reply = null;
-        byte[] replyPayload = new byte[0];
+            byte[] requestPayload = new byte[0];
+            RequestType request = null;
+            ReplyType reply = null;
+            byte[] replyPayload = new byte[0];
 
-        ZMQ.Poller poller = new ZMQ.Poller(2);
+            ZMQ.Poller poller = new ZMQ.Poller(2);
 
-        ZMQ.PollItem payloadPoller = new ZMQ.PollItem(workSocket, ZMQ.Poller.POLLIN);
-        poller.register(payloadPoller);
+            ZMQ.PollItem payloadPoller = new ZMQ.PollItem(workSocket, ZMQ.Poller.POLLIN);
+            poller.register(payloadPoller);
 
-        ZMQ.PollItem controlPoller = new ZMQ.PollItem(controlSocket, ZMQ.Poller.POLLIN);
-        poller.register(controlPoller);
+            ZMQ.PollItem controlPoller = new ZMQ.PollItem(controlSocket, ZMQ.Poller.POLLIN);
+            poller.register(controlPoller);
 
-        while (!Thread.interrupted()) {
-            log.trace("Polling for messages.");
-            poller.poll();
+            while (!Thread.interrupted()) {
+                log.trace("Polling for messages.");
+                poller.poll();
 
-            if (payloadPoller.isReadable()) {
-                try {
-                    //TODO: Better exception handling
-                    requestPayload = recvPayload();
-
-                    if (requestPayload == null) {
-                        log.warn("Received empty payload");
-                        continue;
-                    }
-
-                    request = (RequestType) SerializationHelper.deserialize(requestPayload);
-                    log.trace("Received " + request);
-
+                if (payloadPoller.isReadable()) {
                     try {
-                        reply = handler.handleRequest(request);
-                        replyPayload = SerializationHelper.serialize(reply);
-                    } catch (Exception e) {
-                        log.warn("Catched exception. Sending back to client.", e);
-                        replyPayload = SerializationHelper.serialize(new RequestException(e));
+                        //TODO: Better exception handling
+                        requestPayload = recvPayload();
+
+                        if (requestPayload == null) {
+                            log.warn("Received empty payload");
+                            continue;
+                        }
+
+                        request = (RequestType) SerializationHelper.deserialize(requestPayload);
+                        log.trace("Received " + request);
+
+                        try {
+                            reply = handler.handleRequest(request);
+                            replyPayload = SerializationHelper.serialize(reply);
+                        } catch (Exception e) {
+                            log.warn("Catched exception. Sending back to client.", e);
+                            replyPayload = SerializationHelper.serialize(new RequestException(e));
+                        }
+
+                        sendPayload(replyPayload);
+
+                    } catch (ClassCastException e) {
+                        log.error("Cannot cast request object", e);
+                        // continue with next request
                     }
+                } else if (controlPoller.isReadable()) {
+                    String CMD = controlSocket.recvStr();
+                    log.debug("Received Command " + CMD);
 
-                    sendPayload(replyPayload);
-
-                } catch (ClassCastException e) {
-                    log.error("Cannot cast request object", e);
-                    // continue with next request
-                }
-            } else if (controlPoller.isReadable()) {
-                String CMD = controlSocket.recvStr();
-                log.debug("Received Command " + CMD);
-
-                if (CMD.equals(WorkerCommands.CMD_STOP)) {
+                    if (CMD.equals(WorkerCommands.CMD_STOP)) {
+                        break;
+                    }
+                } else {
+                    log.warn("No messages received! Exiting.");
                     break;
                 }
-            } else {
-                log.warn("No messages received! Exiting.");
-                break;
             }
-        }
         } finally {
             log.info("Terminating Loop closing sockets.");
             closeSockets();
