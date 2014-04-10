@@ -138,6 +138,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
 
     @Override
     public void run() {
+        try {
         log.info("Called run() on " + this);
         if ( workSocket == null || controlSocket == null ) {
             throw new IllegalStateException("Sockets not initialized");
@@ -198,11 +199,11 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
                 log.warn("No messages received! Exiting.");
                 break;
             }
-
         }
-
-        log.info("Terminating Loop closing sockets.");
-        closeSockets();
+        } finally {
+            log.info("Terminating Loop closing sockets.");
+            closeSockets();
+        }
     }
 
 }
