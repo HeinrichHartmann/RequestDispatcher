@@ -137,7 +137,6 @@ public class Dispatcher {
         return getServiceProvider(serviceName).sendSync(request, timeout);
     }
 
-
     /**
      * Listens on sockets and executes appropriate callbacks.
      * Blocks until all Replies are received.
@@ -191,12 +190,12 @@ public class Dispatcher {
             } catch (TimeoutException e) {
 
                 for (Callback c: pendingCallbacks.values()){
-                    c.onTimeOut(e.getMessage());
+                    c.onTimeOut();
                 }
 
                 pendingCallbacks.clear();
 
-                log.info("SERVER: timeout on the server");
+                log.info("SERVER: timeout on the server", e);
             } catch (RequestException e) {
                 log.error("Error occured in Worker.", e);
             }

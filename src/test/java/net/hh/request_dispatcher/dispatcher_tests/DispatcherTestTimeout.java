@@ -53,7 +53,7 @@ public class DispatcherTestTimeout {
             }
 
             @Override
-            public void onTimeOut(String errorMessage) {
+            public void onTimeOut() {
                 answer[0] = TIMEOUT_MSG;
             }
         });
@@ -76,7 +76,7 @@ public class DispatcherTestTimeout {
             }
 
             @Override
-            public void onTimeOut(String errorMessage) {
+            public void onTimeOut() {
                 throw new RuntimeException("Timed Out");
             }
         });

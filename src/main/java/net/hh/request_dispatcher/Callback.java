@@ -36,9 +36,8 @@ public abstract class Callback<ReplyType extends Serializable> {
 
     /** 
      * Override this function if you want to execute some code on a timeout
-     * @param errorMessage
      */
-    public void onTimeOut(String errorMessage) {
+    public void onTimeOut() {
         // pass
     };
 
