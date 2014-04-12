@@ -10,12 +10,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.zeromq.ZMQ;
 
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by hartmann on 4/10/14.
  */
-public class RevisedZmqAdapterTest {
+public class AsyncZmqAdapterTest {
 
     private final ZMQ.Context ctx = ZMQ.context(0);
 
@@ -30,7 +30,7 @@ public class RevisedZmqAdapterTest {
                 }
             }
     );
-    private final RevisedZmqAdapter<String, String> echoAdapter = new RevisedZmqAdapter<String, String>(ctx, echoChannel);
+    private final AsyncZmqAdapter<String, String> echoAdapter = new AsyncZmqAdapter<String, String>(ctx, echoChannel);
 
     private final String errorChannel = "inproc://errorChannel";
     private final ZmqWorker errorWorker = new ZmqWorker<String, String>(
@@ -43,10 +43,10 @@ public class RevisedZmqAdapterTest {
                 }
             }
     );
-    private final RevisedZmqAdapter<String, String> errorAdapter = new RevisedZmqAdapter<String, String>(ctx, errorChannel);
+    private final AsyncZmqAdapter<String, String> errorAdapter = new AsyncZmqAdapter<String, String>(ctx, errorChannel);
 
 
-    private final String sleepChannel = "inproc://errorChannel";
+    private final String sleepChannel = "inproc://sleepChannel";
     private final ZmqWorker sleepWorker = new ZmqWorker<String, String>(
             ctx,
             sleepChannel,
@@ -58,7 +58,22 @@ public class RevisedZmqAdapterTest {
                 }
             }
     );
-    private final RevisedZmqAdapter<String, String> sleepAdapter = new RevisedZmqAdapter<String, String>(ctx, sleepChannel);
+    private final AsyncZmqAdapter<String, String> sleepAdapter = new AsyncZmqAdapter<String, String>(ctx, sleepChannel);
+
+    private AtomicInteger requestCount = new AtomicInteger(0);
+    private final String countChannel = "inproc://countChannel";
+    private final ZmqWorker countWorker = new ZmqWorker<String, String>(
+            ctx,
+            countChannel,
+            new RequestHandler<String, String>() {
+                @Override
+                public String handleRequest(String request) throws Exception {
+                    requestCount.incrementAndGet();
+                    return null;
+                }
+            }
+    );
+    private final AsyncZmqAdapter<String, String> countAdapter = new AsyncZmqAdapter<String, String>(ctx, countChannel);
 
 
 
@@ -67,33 +82,20 @@ public class RevisedZmqAdapterTest {
         echoWorker.start();
         errorWorker.start();
         sleepWorker.start();
+        countWorker.start();
     }
 
     @After
     public void tearDown() throws Exception {
+        echoAdapter.close();
+        errorAdapter.close();
+        sleepAdapter.close();
+        countAdapter.close();
+
         ctx.term(); // closes running workers
     }
 
-    //
-    // SEND SYNC
-    //
 
-    @Test
-    public void testSendSync() throws Exception {
-        String MSG = "Hello World";
-        String response = echoAdapter.sendSync(MSG, 0);
-        Assert.assertEquals(MSG, response);
-    }
-
-    @Test(expected = RequestException.class)
-    public void testSendSyncError() throws Exception {
-        String response = errorAdapter.sendSync("", 0);
-    }
-
-    @Test(expected = TimeoutException.class)
-    public void testSendSyncTimeout() throws Exception {
-        String response = errorAdapter.sendSync("MSG", 50);
-    }
 
     //
     // SEND ASYNC
@@ -110,7 +112,7 @@ public class RevisedZmqAdapterTest {
                 answer[0] = reply;
             }
         });
-        echoAdapter.recvAndExec(0);
+        echoAdapter.recvAndExec(-1);
 
         Assert.assertEquals(MSG, answer[0]);
     }
@@ -126,13 +128,12 @@ public class RevisedZmqAdapterTest {
             }
 
             @Override
-            public void onError(RequestException e) throws RequestException {
-                super.onError(e);
+            public void onError(RequestException e) {
                 answer[0] = "ERR";
             }
         });
 
-        echoAdapter.recvAndExec(0);
+        errorAdapter.recvAndExec(-1);
 
         Assert.assertEquals("ERR", answer[0]);
     }
@@ -147,7 +148,7 @@ public class RevisedZmqAdapterTest {
             public void onSuccess(String reply) {}
 
             @Override
-            public void onTimeOut() {
+            public void onTimeout() {
                 answer[0] = "TOUT";
             }
         });
@@ -157,4 +158,43 @@ public class RevisedZmqAdapterTest {
         Assert.assertEquals("TOUT", answer[0]);
     }
 
+    @Test
+    public void testStackedSend() throws Exception {
+        final String[] answer = new String[2];
+
+        echoAdapter.execute("MSG0", new Callback<String>() {
+            @Override
+            public void onSuccess(String reply) {
+                answer[0] = reply;
+
+                echoAdapter.execute("MSG1", new Callback<String>() {
+                    @Override
+                    public void onSuccess(String reply) {
+                        answer[1] = reply;
+                    }
+                });
+
+            }
+        });
+
+        echoAdapter.recvAndExec(-1);
+        echoAdapter.recvAndExec(-1);
+
+        Assert.assertEquals("MSG0", answer[0]);
+        Assert.assertEquals("MSG1", answer[1]);
+    }
+
+    @Test
+    public void testOneWayExecute() throws Exception {
+        int NUM_REQ = 100;
+
+        for (int i = 0; i < NUM_REQ; i++) {
+            countAdapter.execute("Hi", null);
+        }
+
+        Thread.sleep(NUM_REQ * 10); // 10ms per request.
+
+        Assert.assertEquals(NUM_REQ, requestCount.intValue());
+
+    }
 }
