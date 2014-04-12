@@ -33,6 +33,17 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
     private final HashMap<Integer, Callback<Reply>> pendingCallbacks = new HashMap<Integer, Callback<Reply>>();
     private int callbackCounter = 0;
 
+    /**
+     * Return codes for recvAndExec()
+     */
+    public static enum RC {
+        SUC,            // message received and onSuccess() called
+        ERR,            // message received and onError() called
+        NO_CALLBACK,    // message received and no callback available
+        TOUT            // timeout. No message received,
+    }
+
+
     // CONSTRUCTOR //
     public AsyncZmqAdapter(ZMQ.Socket socket) {
         this.socket = socket;
@@ -73,9 +84,9 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
      *                  0 for direct non-blocking return.
      *                  When timeout is reached onTimeout() method of *ALL* callbacks
      *                  are called.
-     * @return rc       true if message received and callback executed.
+     * @return rc       0 if message received and callback executed.
      */
-    public boolean recvAndExec(int timeout) throws RequestException {
+    public RC recvAndExec(int timeout) {
         int messageCount = poller.poll(timeout);
 
         if (messageCount > 0) {
@@ -88,20 +99,19 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
 
             if (callback == null) {
                 log.warn("No callback for message" + reply);
-                return false;
+                return RC.NO_CALLBACK;
             }
 
             if (reply.isError()) {
                 callback.onError((RequestException) reply.getPayload());
+                return RC.ERR;
             } else {
                 callback.onSuccess((Reply) reply.getPayload());
+                return RC.SUC;
             }
-
-            return true;
-
-        } else { // TIMEOUT
+        } else { // messageCount < 0
             timeout();
-            return false;
+            return RC.TOUT;
         }
     }
 
@@ -115,6 +125,11 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
 
         pendingCallbacks.clear();
     }
+
+    public boolean hasPendingCallbacks() {
+        return ! pendingCallbacks.isEmpty();
+    }
+
 
     // ZMQ INTERNALS //
 
@@ -131,5 +146,4 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
     public void close() {
         socket.close();
     }
-
 }

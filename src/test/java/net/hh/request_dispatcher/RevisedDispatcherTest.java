@@ -45,7 +45,9 @@ public class RevisedDispatcherTest {
             }
     );
 
-    private class constReq implements Serializable {}
+    public static class constReq implements Serializable {
+        public constReq() {}
+    }
 
 
     @Before
@@ -95,8 +97,4 @@ public class RevisedDispatcherTest {
         Assert.assertEquals("MSG", answer);
     }
 
-    @Test
-    public void testShutdown() throws Exception {
-
-    }
 }

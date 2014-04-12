@@ -133,8 +133,9 @@ public class AsyncZmqAdapterTest {
             }
         });
 
-        errorAdapter.recvAndExec(-1);
+        AsyncZmqAdapter.RC rc = errorAdapter.recvAndExec(-1);
 
+        Assert.assertEquals(AsyncZmqAdapter.RC.ERR, rc);
         Assert.assertEquals("ERR", answer[0]);
     }
 
@@ -153,8 +154,9 @@ public class AsyncZmqAdapterTest {
             }
         });
 
-        sleepAdapter.recvAndExec(50);
+        AsyncZmqAdapter.RC rc = sleepAdapter.recvAndExec(50);
 
+        Assert.assertEquals(AsyncZmqAdapter.RC.TOUT, rc);
         Assert.assertEquals("TOUT", answer[0]);
     }
 
@@ -177,8 +179,11 @@ public class AsyncZmqAdapterTest {
             }
         });
 
-        echoAdapter.recvAndExec(-1);
-        echoAdapter.recvAndExec(-1);
+        AsyncZmqAdapter.RC rc1 = echoAdapter.recvAndExec(-1);
+        AsyncZmqAdapter.RC rc2 = echoAdapter.recvAndExec(-1);
+
+        Assert.assertEquals(AsyncZmqAdapter.RC.SUC, rc1);
+        Assert.assertEquals(AsyncZmqAdapter.RC.SUC, rc2);
 
         Assert.assertEquals("MSG0", answer[0]);
         Assert.assertEquals("MSG1", answer[1]);
