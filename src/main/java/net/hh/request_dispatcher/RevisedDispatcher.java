@@ -7,8 +7,7 @@ import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -80,11 +79,20 @@ public class RevisedDispatcher {
 
     // CALLBACK EXECUTION //
 
+    /**
+     * Collect replies and execute callbacks.
+     * @param timeout   in ms.
+     *                  -1 blocks forever
+     *                  0  returns directly
+     */
     public void gatherResults(final int timeout) {
         log.debug("Gathering results with timeout " + timeout);
 
         CountdownTimer timer = new CountdownTimer(timeout);
         timer.start();
+
+        // deliver promises that are note dependent on a single callback
+        deliverPromises();
 
         while(havePendingCallbacks()) {
             int messageCount = poller.poll(timer.timeLeft());
@@ -104,6 +112,10 @@ public class RevisedDispatcher {
                     throw new IllegalStateException();
                 }
             }
+
+            clearDependenciesFromPromises();
+            deliverPromises();
+
         } // while(havePendingCallbacks())
         log.debug("Finished gathering results.");
     }
@@ -174,6 +186,81 @@ public class RevisedDispatcher {
         }
     }
 
+
+    ///////////// PROMISES /////////////////
+
+    Set<PromiseContainer<Callback>> openPromises = new HashSet<PromiseContainer<Callback>>();
+
+    public void promise(Runnable runnable, Callback... callbacks) {
+        openPromises.add(new PromiseContainer<Callback>(runnable, callbacks));
+    }
+
+    private void clearDependenciesFromPromises() {
+        for (AsyncZmqAdapter asyncAdapter : asyncAdapters.values()) {
+            for(PromiseContainer<Callback> promise : openPromises) {
+                promise.clearDependency(asyncAdapter.lastCallback);
+            }
+        }
+    }
+
+    private void deliverPromises() {
+        List<PromiseContainer> toRemove = new ArrayList<PromiseContainer>();
+
+        for(PromiseContainer<Callback> promise : openPromises) {
+            if (promise.isCleared()) {
+                promise.keep();
+
+                // need to delay removal since we are iterating over openPromises
+                // java.util.ConcurrentModificationException
+                toRemove.add(promise);
+            }
+        }
+
+        for(PromiseContainer promise : toRemove) {
+            openPromises.remove(promise);
+        }
+    }
+
+    private class PromiseContainer<T> {
+        private final Runnable runnable;
+        private final Set<T> dependencies = new HashSet<T>();
+
+        private boolean kept = false;
+
+        private PromiseContainer(Runnable runnable, T[] dependencies) {
+            this.dependencies.addAll(Arrays.asList(dependencies));
+            this.runnable  = runnable;
+        }
+
+        /**
+         * Removes dependency from the list of dependencies of this promise
+         * @param dependency
+         */
+        public void clearDependency(T dependency) {
+            dependencies.remove(dependency);
+        }
+
+        /**
+         * @return sucess   true if all dependencies are removed
+         */
+        public boolean isCleared() {
+            return dependencies.isEmpty();
+        }
+
+        /**
+         * Execute stored callback.
+         *
+         * Throws IllegalStateException if called more than once.
+         */
+        public void keep() {
+            if (kept) {
+                throw new IllegalStateException("Called keep() twice.");
+            }
+
+            runnable.run();
+            kept = true;
+        }
+    }
 
 
 }

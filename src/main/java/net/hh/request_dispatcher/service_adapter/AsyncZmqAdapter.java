@@ -36,6 +36,9 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
 
     private final String endpoint; // for debugging
 
+    // DIRTY HACK
+    public Callback lastCallback;
+
     /**
      * Return codes for recvAndExec()
      */
@@ -110,6 +113,8 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
 
         Callback<Reply> callback = pendingCallbacks.get(reply.getCallbackId());
         pendingCallbacks.remove(reply.getCallbackId());
+
+        lastCallback = callback;
 
         if (callback == null) {
             log.warn("No callback for message" + reply);
