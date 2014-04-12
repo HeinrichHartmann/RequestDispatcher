@@ -3,7 +3,6 @@ package net.hh.request_dispatcher.worker;
 import net.hh.request_dispatcher.Callback;
 import net.hh.request_dispatcher.Dispatcher;
 import net.hh.request_dispatcher.server.RequestException;
-import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import net.hh.request_dispatcher.server.RequestHandler;
 import net.hh.request_dispatcher.server.ZmqWorker;
 import org.junit.After;
@@ -27,7 +26,7 @@ public class ZmqWorkerTest {
     public void setUp() throws Exception {
         ctx = ZMQ.context(0);
 
-        dp = new Dispatcher();
+        dp = new Dispatcher(ctx);
 
         /// SETUP WORKER: String -> String
 
@@ -42,8 +41,7 @@ public class ZmqWorkerTest {
         });
 
 
-        dp.registerServiceAdapter("STRING", new ZmqAdapter(ctx, stringChannel));
-        dp.setDefaultService(String.class, "STRING");
+        dp.registerService(String.class, stringChannel);
 
         stringWorker.start();
 
@@ -59,9 +57,7 @@ public class ZmqWorkerTest {
             }
         });
 
-        dp.registerServiceAdapter("EXAMPLE", new ZmqAdapter(ctx, exampleChannel));
-
-        dp.setDefaultService(ReqTO.class, "EXAMPLE");
+        dp.registerService(ReqTO.class, exampleChannel);
 
         exampleTOStringZmqWorker.start();
 
@@ -70,16 +66,23 @@ public class ZmqWorkerTest {
         String errorChannel = "inproc://error" + this.hashCode();
 
         errorWorker = new ZmqWorker<String, String>(ctx,
-                stringChannel, new RequestHandler<String, String>() {
+                errorChannel, new RequestHandler<String, String>() {
             @Override
             public String handleRequest(String request) throws Exception {
                 throw new Exception("ERROR");
             }
         });
 
-        dp.registerServiceAdapter("ERROR", new ZmqAdapter(ctx, stringChannel));
+        dp.registerService(errorTO.class, errorChannel);
+
         errorWorker.start();
 
+    }
+
+    public static class errorTO extends ReqTO {
+        public errorTO(String payload) {
+            super(payload);
+        }
     }
 
     @After
@@ -87,7 +90,6 @@ public class ZmqWorkerTest {
         dp.close();
         ctx.term();
         stringWorker.join();
-
     }
 
     @Test(timeout = 500)
@@ -136,8 +138,7 @@ public class ZmqWorkerTest {
 
     @Test(timeout = 500, expected = RequestException.class)
     public void testSyncError() throws Exception {
-
-        String answer = (String) dp.executeSync("ERROR","REQEST", 100);
+        String answer = (String) dp.executeSync(new errorTO("REQEST"), 100);
 
     }
 

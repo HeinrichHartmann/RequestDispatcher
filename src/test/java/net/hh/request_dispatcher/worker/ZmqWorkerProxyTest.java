@@ -5,7 +5,6 @@ import net.hh.request_dispatcher.Dispatcher;
 import net.hh.request_dispatcher.server.RequestHandler;
 import net.hh.request_dispatcher.server.ZmqWorker;
 import net.hh.request_dispatcher.server.ZmqWorkerProxy;
-import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import org.junit.Assert;
 import org.junit.Test;
 import org.zeromq.ZMQ;
@@ -68,10 +67,10 @@ public class ZmqWorkerProxyTest {
 
         /////////////// SEND REQUESTS /////////////////////
 
-        Dispatcher dp = new Dispatcher();
+        Dispatcher dp = new Dispatcher(ctx);
 
         /// SETUP WORKER: String -> String
-        dp.registerServiceAdapter(String.class, new ZmqAdapter(ctx, inputChannel));
+        dp.registerService(String.class, inputChannel);
 
         final Set<String> answers = new HashSet<String>(NUM_WORKERS);
 

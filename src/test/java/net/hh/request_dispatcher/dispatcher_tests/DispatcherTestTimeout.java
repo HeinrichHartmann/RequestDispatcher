@@ -3,8 +3,10 @@ package net.hh.request_dispatcher.dispatcher_tests;
 import net.hh.request_dispatcher.Callback;
 import net.hh.request_dispatcher.Dispatcher;
 import net.hh.request_dispatcher.mock_server.EchoServer;
-import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 import org.zeromq.ZMQ;
 
 /**
@@ -28,15 +30,14 @@ public class DispatcherTestTimeout {
         echoServer.start();
 
         // before each Test
-        dp = new Dispatcher();
-        dp.registerServiceAdapter("ECHO", new ZmqAdapter(ctx, echoEndpoint));
-        dp.setDefaultService(TestDTO.class, "ECHO");
+        dp = new Dispatcher(ctx);
+        dp.registerService(String.class , echoEndpoint);
     }
 
     @After
     public void tearDown() throws Exception {
         dp.close(); // close sockets
-        echoServer.stop();
+        ctx.term();
     }
 
     private final String TIMEOUT_MSG = "TIMEOUT";
@@ -46,9 +47,9 @@ public class DispatcherTestTimeout {
 
         final String[] answer = new String[1];
 
-        dp.execute(new TestDTO(), new Callback<TestDTO>() {
+        dp.execute("REQ", new Callback<String>() {
             @Override
-            public void onSuccess(TestDTO reply) {
+            public void onSuccess(String reply) {
                 throw new RuntimeException("Not Timed out");
             }
 
@@ -69,9 +70,9 @@ public class DispatcherTestTimeout {
     public void testTimeOk() throws Exception {
         final String[] answer = new String[1];
 
-        dp.execute(new TestDTO(), new Callback<TestDTO>() {
+        dp.execute("REQ", new Callback<String>() {
             @Override
-            public void onSuccess(TestDTO reply) {
+            public void onSuccess(String reply) {
                 answer[0] = "OK";
             }
 

@@ -5,7 +5,6 @@ import net.hh.request_dispatcher.Dispatcher;
 import net.hh.request_dispatcher.server.RequestException;
 import net.hh.request_dispatcher.server.RequestHandler;
 import net.hh.request_dispatcher.server.ZmqWorker;
-import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
 import org.junit.Assert;
 import org.junit.Test;
 import org.zeromq.ZMQ;
@@ -38,8 +37,8 @@ public class DispatcherErrorTest {
                             }
                         });
 
-        Dispatcher dp = new Dispatcher();
-        dp.registerServiceAdapter(String.class, new ZmqAdapter(ctx, channel));
+        Dispatcher dp = new Dispatcher(ctx);
+        dp.registerService(String.class, channel);
 
         worker.start();
 

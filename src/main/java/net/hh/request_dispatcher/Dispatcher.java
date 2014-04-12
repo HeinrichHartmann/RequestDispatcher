@@ -1,303 +1,175 @@
 package net.hh.request_dispatcher;
 
 import net.hh.request_dispatcher.server.RequestException;
-import net.hh.request_dispatcher.service_adapter.ReplyWrapper;
-import net.hh.request_dispatcher.service_adapter.ServiceAdapter;
+import net.hh.request_dispatcher.service_adapter.AsyncZmqAdapter;
+import net.hh.request_dispatcher.service_adapter.SyncZmqAdapter;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Asynchronus Request Dispatcher Class
- * 
- * New requests can be issued with the execute() methods.
- * Replys are collected on the gatherResults() method.
+ * Dispatches Requests to external services over ZMQ.
+ * - match request object to the correct service by type comparison
  *
- * @author hartmann, rpickhardt
+ * Created by hartmann on 4/10/14.
  */
 public class Dispatcher {
 
-    private static Logger log = Logger.getLogger(Dispatcher.class);
+    private Logger log = Logger.getLogger(Dispatcher.class);
 
-    private static int oo = Integer.MAX_VALUE;
+    private final ZMQ.Context ctx;
+    private final Map<Class, AsyncZmqAdapter> asyncAdapters = new HashMap<Class, AsyncZmqAdapter>();
+    private final Map<Class, SyncZmqAdapter> syncAdapters = new HashMap<Class, SyncZmqAdapter>();
 
-    // holds registered services
-    private final Map<String, ServiceAdapter> serviceInstances = new HashMap<String, ServiceAdapter>();
+    private final ZMQ.Poller poller = new ZMQ.Poller(0);
 
-    // holds default services for request types
-    private final Map<Class, String> defaultService = new HashMap<Class, String>();
-
-
-    /////////////////// CONSTRUCTOR ////////////////////////
-
-    public Dispatcher() {}
-
-    ////////////////// ADAPTER ADMINISTRATION //////////////////
-
-    public void registerServiceAdapter(
-            final String serviceName,
-            final ServiceAdapter service) {
-        if (serviceInstances.containsKey(serviceName)) {
-            throw new IllegalArgumentException("Service Already registered");
-        }
-        serviceInstances.put(serviceName, service);
-
-        registerPoller(service);
+    // CONSTRUCTORS //
+    public Dispatcher(ZMQ.Context ctx) {
+        this.ctx = ctx;
     }
 
-    private ServiceAdapter getServiceProvider(final String serviceName) {
-        if (! serviceInstances.containsKey(serviceName)){
-            throw new IllegalArgumentException("No service provider registered for name " + serviceName);
-        }
-        return serviceInstances.get(serviceName);
+    public Dispatcher() {
+        this(ZMQ.context(1));
     }
 
-    //////////////// DEFAULT SERVICE RESOLUTION ////////////////////
+    // SERVICE MANAGEMENT //
 
-    public void setDefaultService(final Class requestClass, final String serviceName) {
-        defaultService.put(requestClass, serviceName);
+    public void registerService(final Class requestClass, final String endpoint) {
+        log.debug("Registering ServiceAcapter for class " + requestClass);
+
+        syncAdapters.put(requestClass, new SyncZmqAdapter(ctx, endpoint));
+
+        AsyncZmqAdapter asyncZmqAdapter = new AsyncZmqAdapter(ctx, endpoint);
+        asyncAdapters.put(requestClass, asyncZmqAdapter);
+        poller.register(asyncZmqAdapter.getPollItem());
+
     }
 
-    private String inferServiceName(final Serializable request) {
-        if (! defaultService.containsKey(request.getClass())) {
-            throw new IllegalArgumentException("No default service registered for request type");
-        }
-
-        return defaultService.get(request.getClass());
-    }
+    // REQUEST EXECUTION //
 
     /**
-     * Convenience method that registers service adapter directly for the request class.
-     * @param requestClass
-     * @param service
-     */
-    public void registerServiceAdapter(final Class requestClass, final ServiceAdapter service) {
-        String serviceName = (String) requestClass.getName();
-        registerServiceAdapter(serviceName, service);
-        setDefaultService(requestClass, serviceName);
-    }
-
-    /////////////////// REQUEST EXECUTION  //////////////////////
-
-    /**
-     * Sends a non-blocking Request to the default service registered for the
-     * Request type.
-     *
-     * Requires default service to be registered for request type.
-     *
-     * @param request
-     * @param callback
+     * @param request   sent to the registered service.
+     * @param callback  that handles the response. Executed on gatherResults()
      */
     public void execute(final Serializable request, final Callback callback) {
-        // TODO: Enforce Request and Reply types
-        execute(inferServiceName(request), request, callback);
-    }
+        log.debug("Dispatching request of type " + request.getClass());
 
-    /**
-     * Sends a non-blocking Request to the service specified by serviceName.
-     * The Response will be processed in the callback which has to be implemented.
-     *
-     * @param serviceName   service identifier. Has to be registered before usage.
-     * @param request       request object that will be serialized and passed to the server
-     * @param callback      to be executed by gatherResults method on the Reply Object returned by the service
-     */
-    public void execute(final String serviceName, final Serializable request, final Callback callback)  {
-        int id = 0;
-
-        if (callback != null) {
-            id = generateCallbackId(callback);
-            registerCallbackObject(id, callback);
+        if (! asyncAdapters.containsKey(request.getClass())) {
+            throw new IllegalStateException("No adapter registered for class " + request.getClass());
         }
 
-        try {
-            getServiceProvider(serviceName).send(request, id);
-        } catch (IOException e) {
-            log.error(e);
+        asyncAdapters.get(request.getClass()).execute(request, callback);
+    }
+
+    /**
+     * @param request   sent to the registered service. Null on timeout.
+     * @param timeout   in ms.
+     * @return response
+     */
+    public Serializable executeSync(final Serializable request, int timeout) throws TimeoutException, RequestException {
+        if (! syncAdapters.containsKey(request.getClass())) {
+            throw new IllegalStateException("No adapter registered for class " + request.getClass());
         }
+
+        return syncAdapters.get(request.getClass()).sendSync(request, timeout);
     }
 
-    /**
-     * Shortcut for executeSync(serivceName, request, timeout)
-     */
-    public Serializable executeSync(final Serializable request, int timeout) throws RequestException {
-        return executeSync(inferServiceName(request), request, timeout);
-    }
+    // CALLBACK EXECUTION //
 
-
-    /**
-     * Blocking synchronus call to background service.
-     * @param serviceName   name of service to be called
-     * @param request       request payload.
-     * @param timeout       timeout in ms.
-     * @return response     returned result. Null on timeout.
-     * @throws RequestException
-     */
-    public Serializable executeSync(final String serviceName, final Serializable request, final int timeout) throws RequestException {
-        return getServiceProvider(serviceName).sendSync(request, timeout);
-    }
-
-    /**
-     * Listens on sockets and executes appropriate callbacks.
-     * Blocks until all Replies are received.
-     */
     public void gatherResults() {
-        // wait forever
-        gatherResults(oo);
+        gatherResults(-1);
     }
 
     /**
-     * Listens on sockets and executes appropriate callbacks.
-     * Blocks untial all Replies are received or timeout is hit.
-     *
-     * @param timeout maximal time to wait for replies
+     * Collect replies and execute callbacks.
+     * @param timeout   in ms.
+     *                  -1 blocks forever
+     *                  0  returns directly
      */
-    public void gatherResults(final int timeout){
+    public void gatherResults(final int timeout) {
         log.debug("Gathering results with timeout " + timeout);
 
-        Timer timer = new Timer(timeout);
+        CountdownTimer timer = new CountdownTimer(timeout);
         timer.start();
-
-        Callback callback = null;
-        ReplyWrapper reply = null;
 
         // deliver promises that are note dependent on a single callback
         deliverPromises();
 
-        while (hasPendingCallbacks()){
-            try {
+        while(havePendingCallbacks()) {
+            int messageCount = poller.poll(timer.timeLeft());
 
-                reply = pollMessage(timer.timeLeft());
-
-                log.debug("Recieved message " + reply);
-
-                callback = pullCallbackObject(reply.getCallbackId());
-
-                if (callback == null) {
-                    log.warn("No callback for message" + reply);
-                    continue;
+            if (messageCount > 0) {
+                for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
+                    asyncZmqAdapter.recvAndExec(ZMQ.NOBLOCK); // non blocking recv
                 }
-
-                if (reply.isError()) {
-                    callback.onError((RequestException) reply.getPayload());
+            } else { // nc <= 0
+                if (timer.timeLeft() <= 0) {
+                    log.debug("Timeout.");
+                    timeoutAll();
+                    break;
                 } else {
-                    callback.onSuccess(reply.getPayload());
-                }
-
-                clearDependenciesFromPromises(callback);
-                deliverPromises();
-
-            } catch (TimeoutException e) {
-
-                for (Callback c: pendingCallbacks.values()){
-                    c.onTimeout();
-                }
-
-                pendingCallbacks.clear();
-
-                log.info("SERVER: timeout on the server", e);
-            }
-        }
-    }
-
-    /**
-     * Closes sockets of all registered services
-     */
-    public void close() throws IOException {
-        log.debug("Dispatcher object.");
-        for (ServiceAdapter s : serviceInstances.values()){
-            s.close();
-        }
-    }
-
-
-    //////////////////// POLLING //////////////////////////
-
-    private final ZMQ.Poller poller = new ZMQ.Poller(5);
-    private final List<ServiceAdapter> pollServiceList = new ArrayList<ServiceAdapter>();
-
-    /**
-     * Recieves multipart messages from all open sockets as String [].
-     *
-     * @param timeout               maximal time to wait for messages
-     *                              in milliseconds
-     * @return reply                Wrapped Reply from socket
-     * @throws TimeoutException     if timeout exceeded
-     */
-    private ReplyWrapper pollMessage(final int timeout) throws TimeoutException {
-        log.debug("Polling sockets with timeout " + timeout);
-
-        int messageCount = poller.poll(timeout);
-
-        if (messageCount > 0){
-            // message received
-            for (int i = 0; i < pollServiceList.size(); i++){
-                if (poller.pollin(i)){
-                    return pollServiceList.get(i).recv();
+                    log.debug("Interrupted while polling.");
+                    // TODO: Shutdown sockets?
+                    throw new IllegalStateException();
                 }
             }
 
-            throw new IllegalStateException("No message recieved on polling.");
-        } else {
-            log.debug("Socket polling timed out after " + timeout + "ms");
+            clearDependenciesFromPromises();
+            deliverPromises();
 
-            throw new TimeoutException("Request timed out after " + timeout + " milliseconds.");
+        } // while(havePendingCallbacks())
+        log.debug("Finished gathering results.");
+    }
+
+    /**
+     * @return true if one or more callbacks are pending.
+     */
+    private boolean havePendingCallbacks() {
+        for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
+            if (asyncZmqAdapter.hasPendingCallbacks()) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Call timeout() methods of all asyncAdapters.
+     */
+    private void timeoutAll() {
+        for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
+            asyncZmqAdapter.timeout();
         }
     }
 
-    private void registerPoller(final ServiceAdapter service){
-        poller.register(service.getPollItem());
-        pollServiceList.add(service);
-    }
-
-    ///////////// Callback Object Storage ////////////
-
-    private final Map<Integer, Callback> pendingCallbacks = new HashMap<Integer, Callback>();
+    //// OTHER
 
     /**
-     * Stores callback object in set. Returns ID for access.
-     *
-     * @param id
-     * @param callback
-     * @return callbackId
+     * Manage coordinated shutdown of all sockets.
      */
-    private void registerCallbackObject(final int id, final Callback callback){
-        pendingCallbacks.put(id, callback);
+    public void close() {
+        for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
+            asyncZmqAdapter.close();
+        }
+
+        for (SyncZmqAdapter syncZmqAdapter : syncAdapters.values()) {
+            syncZmqAdapter.close();
+        }
     }
 
-    private Callback pullCallbackObject(final int callbackId){
-        Callback out = pendingCallbacks.get(callbackId);
-        pendingCallbacks.remove(callbackId);
-        return out;
-    }
+    //// HELPER
 
-    private static int callbackCounter = 0;
-
-    /**
-     *  Returns a globally unique callback id
-     *  Has to be able to handle null as input.
-     */
-    private int generateCallbackId(final Callback callback) {
-        return callbackCounter++;
-        // return callback.hashCode();
-    }
-
-    private boolean hasPendingCallbacks(){
-        return ! pendingCallbacks.isEmpty();
-    }
-
-
-    ////////////// TIMEOUT ////////////
-
-    // Helper class for managing timeouts
-    private class Timer {
+    private class CountdownTimer {
         long start_time;
         int timeout;
 
-        Timer(int timeout) {
+        /**
+         * @param timeout   counter in ms.
+         *                  -1  for infinite wait
+         *                  0   for direct return
+         */
+        CountdownTimer(int timeout) {
             this.timeout = timeout;
         }
 
@@ -305,8 +177,16 @@ public class Dispatcher {
             start_time = System.currentTimeMillis();
         }
 
+        /**
+         * @return  time left on countdown.
+         *          0 if no time is left.
+         *          always -1  if timeout was set to -1
+         *          always 0   if timeout was set to 0
+         */
         public int timeLeft() {
-            return (int) (timeout - (System.currentTimeMillis() - start_time));
+            if (timeout == -1)  return -1;
+            if (timeout == 0)   return 0;
+            return (int) Math.max(0, (timeout - (System.currentTimeMillis() - start_time)));
         }
     }
 
@@ -319,9 +199,11 @@ public class Dispatcher {
         openPromises.add(new PromiseContainer<Callback>(runnable, callbacks));
     }
 
-    private void clearDependenciesFromPromises(Callback callback) {
-        for(PromiseContainer<Callback> promise : openPromises) {
-            promise.clearDependency(callback);
+    private void clearDependenciesFromPromises() {
+        for (AsyncZmqAdapter asyncAdapter : asyncAdapters.values()) {
+            for(PromiseContainer<Callback> promise : openPromises) {
+                promise.clearDependency(asyncAdapter.lastCallback);
+            }
         }
     }
 
@@ -383,4 +265,6 @@ public class Dispatcher {
             kept = true;
         }
     }
+
+
 }

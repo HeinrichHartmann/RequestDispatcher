@@ -3,7 +3,7 @@ package net.hh.request_dispatcher.dispatcher_tests;
 import net.hh.request_dispatcher.Callback;
 import net.hh.request_dispatcher.Dispatcher;
 import net.hh.request_dispatcher.mock_server.EchoServer;
-import net.hh.request_dispatcher.service_adapter.ZmqAdapter;
+import net.hh.request_dispatcher.service_adapter.AdapterHelper;
 import org.junit.*;
 import org.zeromq.ZMQ;
 
@@ -12,35 +12,27 @@ import org.zeromq.ZMQ;
  */
 public class DispatcherTest {
 
-    static ZMQ.Context ctx = ZMQ.context(0);
-    static String echoEndpoint = "inproc://127.0.0.1:60123";
-    static EchoServer echoServer;
+    private ZMQ.Context ctx = ZMQ.context(0);
+    private String echoEndpoint = "inproc://127.0.0.1:60123";
+    private EchoServer echoServer;
 
-    @BeforeClass
-    public static void setupMockServer() throws Exception {
-        echoServer = new EchoServer(ctx, echoEndpoint);
-        echoServer.start();
-    }
-
-    @AfterClass
-    public static void stopMockServer() throws Exception {
-        echoServer.stop();
-    }
-
-    Dispatcher dp;
+    private Dispatcher dp;
 
     @Before
     public void setUp() throws Exception {
+        echoServer = new EchoServer(ctx, echoEndpoint);
+        echoServer.start();
+
         // before each Test
-        dp = new Dispatcher();
-        dp.registerServiceAdapter("ECHO", new ZmqAdapter(ctx, echoEndpoint));
-        dp.setDefaultService(String.class, "ECHO");
-        dp.setDefaultService(TestDTO.class, "ECHO");
+        dp = new Dispatcher(ctx);
+        dp.registerService(String.class, echoEndpoint);
+        dp.registerService(TestDTO.class, echoEndpoint);
     }
 
     @After
     public void tearDown() throws Exception {
         dp.close(); // close sockets
+        ctx.term();
     }
 
     @Test
@@ -57,7 +49,7 @@ public class DispatcherTest {
     }
 
     @Test(timeout = 500)
-    public void chainedExecute() throws Exception {
+    public void testChainedExecute() throws Exception {
         final String[] answer = new String[2];
 
         dp.execute("msg1", new Callback<String>() {
@@ -161,7 +153,7 @@ public class DispatcherTest {
     @Test
     public void testIntByteConv() throws Exception {
         for (int i = -5000; i < 5000; i += 235) {
-            Assert.assertEquals(i, ZmqAdapter.bytes2int(ZmqAdapter.int2bytes(i)));
+            Assert.assertEquals(i, AdapterHelper.bytes2int(AdapterHelper.int2bytes(i)));
         }
     }
 }

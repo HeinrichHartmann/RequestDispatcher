@@ -18,7 +18,7 @@ public class RevisedDispatcherTest {
 
     private final ZMQ.Context ctx = ZMQ.context(0);
 
-    private final RevisedDispatcher dp = new RevisedDispatcher(ctx);
+    private final Dispatcher dp = new Dispatcher(ctx);
 
     private final String echoChannel = "inproc://echoChannel";
 
