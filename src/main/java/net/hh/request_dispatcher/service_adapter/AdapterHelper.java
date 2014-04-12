@@ -1,6 +1,7 @@
 package net.hh.request_dispatcher.service_adapter;
 
 import net.hh.request_dispatcher.transfer.SerializationHelper;
+import org.apache.log4j.Logger;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
@@ -15,17 +16,34 @@ import java.math.BigInteger;
  */
 public class AdapterHelper {
 
+    private static final Logger log = Logger.getLogger(AdapterHelper.class);
+
+    /**
+     * Closes socket on ETERM
+     */
     public static void sendMessage(ZMQ.Socket socket, Serializable request, int callbackId)  {
-        ZMsg out = new ZMsg();
+        try {
+            ZMsg out = new ZMsg();
 
-        out.push(SerializationHelper.serialize(request));
-        out.push(int2bytes(callbackId));
-        out.push(new byte[0]); // Add empty frame as REQ envelope
+            out.push(SerializationHelper.serialize(request));
+            out.push(int2bytes(callbackId));
+            out.push(new byte[0]); // Add empty frame as REQ envelope
 
-        boolean rc = out.send(socket);
-        if (!rc) throw new ZMQException.IOException(new IOException("Error sending message"));
+            boolean rc = out.send(socket);
+            if (!rc) throw new ZMQException.IOException(new IOException("Error sending message"));
+        } catch (ZMQException e) {
+            if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
+                log.debug("Received ETERM. Closing socket.");
+                socket.close();
+            } else {
+                throw e;
+            }
+        }
     }
 
+    /**
+     * Closes socket on ETERM
+     */
     public static ReplyWrapper recvMessage(ZMQ.Socket socket) {
         {
             try {
@@ -51,6 +69,7 @@ public class AdapterHelper {
                 );
             } catch (ZMQException e) {
                 if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
+                    log.debug("Received ETERM. Closing socket.");
                     socket.close();
                     return null;
                 } else {
