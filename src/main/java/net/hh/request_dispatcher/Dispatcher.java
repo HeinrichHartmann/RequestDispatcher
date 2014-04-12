@@ -31,13 +31,16 @@ public class Dispatcher {
     // holds default services for request types
     private final Map<Class, String> defaultService = new HashMap<Class, String>();
 
+
     /////////////////// CONSTRUCTOR ////////////////////////
 
     public Dispatcher() {}
 
     ////////////////// ADAPTER ADMINISTRATION //////////////////
 
-    public void registerServiceAdapter(final String serviceName, final ServiceAdapter service) {
+    public void registerServiceAdapter(
+            final String serviceName,
+            final ServiceAdapter service) {
         if (serviceInstances.containsKey(serviceName)) {
             throw new IllegalArgumentException("Service Already registered");
         }
@@ -190,14 +193,12 @@ public class Dispatcher {
             } catch (TimeoutException e) {
 
                 for (Callback c: pendingCallbacks.values()){
-                    c.onTimeOut();
+                    c.onTimeout();
                 }
 
                 pendingCallbacks.clear();
 
                 log.info("SERVER: timeout on the server", e);
-            } catch (RequestException e) {
-                log.error("Error occured in Worker.", e);
             }
         }
     }

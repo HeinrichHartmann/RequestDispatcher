@@ -156,12 +156,11 @@ public class DispatcherTest {
 
         Assert.assertEquals("unconditionalPromise", answer[0]);
         Assert.assertEquals("dependentCallback", answer[1]);
-
     }
 
     @Test
     public void testIntByteConv() throws Exception {
-        for (int i = 5; i < 5000; i += 235) {
+        for (int i = -5000; i < 5000; i += 235) {
             Assert.assertEquals(i, ZmqAdapter.bytes2int(ZmqAdapter.int2bytes(i)));
         }
     }

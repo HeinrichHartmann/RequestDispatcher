@@ -20,14 +20,6 @@ public abstract class Callback<ReplyType extends Serializable> {
     public Callback() {}
 
     /**
-     * Do use empty constructor instead. No need to supply Reply instance any more.
-     * @param reply
-     */
-    @Deprecated
-    public Callback(ReplyType reply) {
-    }
-
-    /**
      * Will be called after successfully a response from an ZMQ socket is received
      * 
      * @param reply contains the reply
@@ -37,13 +29,17 @@ public abstract class Callback<ReplyType extends Serializable> {
     /** 
      * Override this function if you want to execute some code on a timeout
      */
-    public void onTimeOut() {
-        // pass
-    };
+    public void onTimeout() {
+        log.debug("Called onTimeout()");
+    }
 
-    public void onError(RequestException e) throws RequestException {
+    /**
+     * Executed when exception thrown in handleRequest().
+     *
+     * @param e wraps the thrown exception
+     */
+    public void onError(RequestException e) {
         log.error("Called onError()", e);
-        throw e;
     }
 
 }

@@ -45,7 +45,7 @@ public class SyncZmqAdapterTest {
     private final SyncZmqAdapter<String, String> errorAdapter = new SyncZmqAdapter<String, String>(ctx, errorChannel);
 
 
-    private final String sleepChannel = "inproc://errorChannel";
+    private final String sleepChannel = "inproc://sleepChannel";
     private final ZmqWorker sleepWorker = new ZmqWorker<String, String>(
             ctx,
             sleepChannel,
