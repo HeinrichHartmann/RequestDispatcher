@@ -112,6 +112,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
      * <p/>
      * Side: Stores the remaining part of the message for use in sendPayload()
      *
+     * TODO: Handle Context Termination. ZMQEception is thrown here.
      * @return payload containing the received data
      */
     private byte[] recvPayload() {
@@ -126,6 +127,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
      * Restores request envelope by appending the contents the payload
      * last part to stored multipart message.
      *
+     * TODO: Handle Context Termination. ZMQEception is thrown here.
      * @param payload
      */
     private void sendPayload(byte[] payload) {
@@ -182,6 +184,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
                             replyPayload = SerializationHelper.serialize(new RequestException(e));
                         }
 
+                        // TODO: Sent no response when there is no callback: CallbackId = -1
                         sendPayload(replyPayload);
 
                     } catch (ClassCastException e) {
