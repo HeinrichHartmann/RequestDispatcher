@@ -5,6 +5,7 @@ import net.hh.request_dispatcher.server.RequestException;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 
@@ -33,6 +34,8 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
     private final HashMap<Integer, Callback<Reply>> pendingCallbacks = new HashMap<Integer, Callback<Reply>>();
     private int callbackCounter = 0;
 
+    private final String endpoint; // for debugging
+
     /**
      * Return codes for recvAndExec()
      */
@@ -40,7 +43,7 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
         SUC,            // message received and onSuccess() called
         ERR,            // message received and onError() called
         NO_CALLBACK,    // message received and no callback available
-        TOUT            // timeout. No message received,
+        NO_MESSAGE      // no message received
     }
 
 
@@ -48,14 +51,19 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
     public AsyncZmqAdapter(ZMQ.Socket socket) {
         this.socket = socket;
         poller.register(socket, ZMQ.Poller.POLLIN);
+
+        this.endpoint = "";
     }
 
     public AsyncZmqAdapter(ZMQ.Context ctx, String endpoint) {
-        this(ctx.socket(ZMQ.DEALER));
+        this.endpoint = endpoint;
 
+        socket = ctx.socket(ZMQ.DEALER);
         socket.setLinger(100);
         socket.setHWM(1000);
         socket.connect(endpoint);
+
+        poller.register(socket, ZMQ.Poller.POLLIN);
     }
 
     /**
@@ -71,7 +79,11 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
             pendingCallbacks.put(callbackId, callback);
         }
 
-        AdapterHelper.sendMessage(socket, request, callbackId);
+        try {
+            AdapterHelper.sendMessage(socket, request, callbackId);
+        } catch (IOException e) {
+            log.error(e);
+        }
     }
 
 
@@ -80,38 +92,36 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
     /**
      * Receive message on socket and execute corresponding callback.
      *
-     * @param  timeout  -1 for blocking infinite timeout.
-     *                  0 for direct non-blocking return.
-     *                  When timeout is reached onTimeout() method of *ALL* callbacks
-     *                  are called.
-     * @return rc       0 if message received and callback executed.
+     * @param  flag     passed to ZMQ Socket
+     * @return rc       return code. See enum descriptions.
      */
-    public RC recvAndExec(int timeout) {
-        int messageCount = poller.poll(timeout);
+    public RC recvAndExec(int flag) {
+        log.debug("Called recvAndExec() on " + this);
 
-        if (messageCount > 0) {
-            ReplyWrapper reply = AdapterHelper.recvMessage(socket);
+        ReplyWrapper reply = null;
 
+        try {
+            reply = AdapterHelper.recvMessage(socket, flag);
             log.debug("Recieved message " + reply);
+        } catch (IOException e) {
+            log.error(e);
+            return RC.NO_MESSAGE;
+        }
 
-            Callback<Reply> callback = pendingCallbacks.get(reply.getCallbackId());
-            pendingCallbacks.remove(reply.getCallbackId());
+        Callback<Reply> callback = pendingCallbacks.get(reply.getCallbackId());
+        pendingCallbacks.remove(reply.getCallbackId());
 
-            if (callback == null) {
-                log.warn("No callback for message" + reply);
-                return RC.NO_CALLBACK;
-            }
+        if (callback == null) {
+            log.warn("No callback for message" + reply);
+            return RC.NO_CALLBACK;
+        }
 
-            if (reply.isError()) {
-                callback.onError((RequestException) reply.getPayload());
-                return RC.ERR;
-            } else {
-                callback.onSuccess((Reply) reply.getPayload());
-                return RC.SUC;
-            }
-        } else { // messageCount < 0
-            timeout();
-            return RC.TOUT;
+        if (reply.isError()) {
+            callback.onError((RequestException) reply.getPayload());
+            return RC.ERR;
+        } else {
+            callback.onSuccess((Reply) reply.getPayload());
+            return RC.SUC;
         }
     }
 
@@ -127,7 +137,7 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
     }
 
     public boolean hasPendingCallbacks() {
-        return ! pendingCallbacks.isEmpty();
+        return !pendingCallbacks.isEmpty();
     }
 
 
@@ -145,5 +155,14 @@ public class AsyncZmqAdapter<Request extends Serializable, Reply extends Seriali
      */
     public void close() {
         socket.close();
+    }
+
+    @Override
+    public String toString() {
+        return "AsyncZmqAdapter{" +
+                "endpoint=" + endpoint + ", " +
+                "callbackCounter=" + callbackCounter + ", " +
+                "pendingCallbacks=" + pendingCallbacks.size() +
+                '}';
     }
 }

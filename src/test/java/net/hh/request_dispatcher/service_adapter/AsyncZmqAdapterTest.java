@@ -69,7 +69,7 @@ public class AsyncZmqAdapterTest {
                 @Override
                 public String handleRequest(String request) throws Exception {
                     requestCount.incrementAndGet();
-                    return null;
+                    return "OK";
                 }
             }
     );
@@ -112,7 +112,8 @@ public class AsyncZmqAdapterTest {
                 answer[0] = reply;
             }
         });
-        echoAdapter.recvAndExec(-1);
+
+        echoAdapter.recvAndExec(0);
 
         Assert.assertEquals(MSG, answer[0]);
     }
@@ -133,31 +134,10 @@ public class AsyncZmqAdapterTest {
             }
         });
 
-        AsyncZmqAdapter.RC rc = errorAdapter.recvAndExec(-1);
+        AsyncZmqAdapter.RC rc = errorAdapter.recvAndExec(0);
 
         Assert.assertEquals(AsyncZmqAdapter.RC.ERR, rc);
         Assert.assertEquals("ERR", answer[0]);
-    }
-
-    @Test
-    public void testSendTimeout() throws Exception {
-        String MSG = "MSG";
-        final String[] answer = new String[1];
-
-        sleepAdapter.execute(MSG, new Callback<String>() {
-            @Override
-            public void onSuccess(String reply) {}
-
-            @Override
-            public void onTimeout() {
-                answer[0] = "TOUT";
-            }
-        });
-
-        AsyncZmqAdapter.RC rc = sleepAdapter.recvAndExec(50);
-
-        Assert.assertEquals(AsyncZmqAdapter.RC.TOUT, rc);
-        Assert.assertEquals("TOUT", answer[0]);
     }
 
     @Test
@@ -179,8 +159,8 @@ public class AsyncZmqAdapterTest {
             }
         });
 
-        AsyncZmqAdapter.RC rc1 = echoAdapter.recvAndExec(-1);
-        AsyncZmqAdapter.RC rc2 = echoAdapter.recvAndExec(-1);
+        AsyncZmqAdapter.RC rc1 = echoAdapter.recvAndExec(0);
+        AsyncZmqAdapter.RC rc2 = echoAdapter.recvAndExec(0);
 
         Assert.assertEquals(AsyncZmqAdapter.RC.SUC, rc1);
         Assert.assertEquals(AsyncZmqAdapter.RC.SUC, rc2);
@@ -191,13 +171,22 @@ public class AsyncZmqAdapterTest {
 
     @Test
     public void testOneWayExecute() throws Exception {
+        final String [] answer = new String[1];
         int NUM_REQ = 100;
 
         for (int i = 0; i < NUM_REQ; i++) {
             countAdapter.execute("Hi", null);
         }
+        countAdapter.execute("END", new Callback<String>() {
+            @Override
+            public void onSuccess(String reply) {
+                answer[0] = reply;
+            }
+        });
 
-        Thread.sleep(NUM_REQ * 10); // 10ms per request.
+        countAdapter.recvAndExec(0);
+
+        Assert.assertEquals("END", answer[0]);
 
         Assert.assertEquals(NUM_REQ, requestCount.intValue());
 

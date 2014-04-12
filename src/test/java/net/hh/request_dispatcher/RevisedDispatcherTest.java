@@ -1,6 +1,7 @@
 package net.hh.request_dispatcher;
 
 import junit.framework.Assert;
+import net.hh.request_dispatcher.server.RequestException;
 import net.hh.request_dispatcher.server.RequestHandler;
 import net.hh.request_dispatcher.server.ZmqWorker;
 import org.junit.After;
@@ -49,52 +50,92 @@ public class RevisedDispatcherTest {
         public constReq() {}
     }
 
+    private final String sleepChannel = "inproc://sleepChannel";
+    private final ZmqWorker sleepWorker = new ZmqWorker<sleepReq, String>(
+            ctx,
+            sleepChannel,
+            new RequestHandler<sleepReq, String>() {
+                @Override
+                public String handleRequest(sleepReq request) throws Exception {
+                    Thread.sleep(100);
+                    return null;
+                }
+            }
+    );
+
+    public static class sleepReq implements Serializable {
+        public sleepReq() {}
+    }
+
 
     @Before
     public void setUp() throws Exception {
         dp.registerService(String.class, echoChannel);
         dp.registerService(constReq.class, constChannel);
+        dp.registerService(sleepReq.class, sleepChannel);
 
         echoWorker.start();
         constWorker.start();
+        sleepWorker.start();
     }
 
     @After
     public void tearDown() throws Exception {
-        dp.shutdown();
+        dp.close(); // closes adapter sockets.
+
         ctx.term(); // shuts down workers.
     }
 
 
     @Test
+    public void testExecuteSync() throws Exception {
+        String answer = (String) dp.executeSync("MSG", -1);
+        Assert.assertEquals("MSG", answer);
+    }
+
+    @Test
     public void testExecute() throws Exception {
-        final String[] answer = new String[2];
-
-        dp.execute("MSG", new Callback<String>() {
-            @Override
-            public void onSuccess(String reply) {
-                answer[0] = reply;
-            }
-        });
-
-        dp.execute(new constReq(), new Callback<String>() {
-            @Override
-            public void onSuccess(String reply) {
-                answer[1] = reply;
-            }
-        });
+        dp.execute("MSG",           CallbackFactory(0));
+        dp.execute(new constReq(),  CallbackFactory(1));
 
         // gather all results
         dp.gatherResults(-1);
 
-        Assert.assertEquals("MSG", answer[0]);
-        Assert.assertEquals(CONST, answer[1]);
+        Assert.assertEquals("MSG", replies[0]);
+        Assert.assertEquals(CONST, replies[1]);
     }
 
     @Test
-    public void testExecuteSync() throws Exception {
-        String answer = (String) dp.executeSync("MSG", -1);
-        Assert.assertEquals("MSG", answer);
+    public void testTimeout() throws Exception {
+        dp.execute(new sleepReq(), CallbackFactory(0));
+
+        dp.gatherResults(50);
+
+        Assert.assertEquals("TOUT", returnCodes[0]);
+    }
+
+
+    private final String [] returnCodes = new String[10];
+    private final String [] replies = new String[10];
+
+    private Callback CallbackFactory(final int index) {
+        return new Callback() {
+            @Override
+            public void onSuccess(Serializable reply) {
+                replies[index] = reply.toString();
+                returnCodes[index] = "SUC";
+            }
+
+            @Override
+            public void onTimeout() {
+                returnCodes[index] = "TOUT";
+            }
+
+            @Override
+            public void onError(RequestException e) {
+                returnCodes[index] = "ERR";
+            }
+        };
     }
 
 }

@@ -3,7 +3,6 @@ package net.hh.request_dispatcher.service_adapter;
 import net.hh.request_dispatcher.server.RequestException;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMQException;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -49,17 +48,26 @@ public class SyncZmqAdapter<Request extends Serializable, Reply extends Serializ
      * @throws TimeoutException thrown on timeout
      */
     public Reply sendSync(Request request, int timeout) throws RequestException, TimeoutException {
-        AdapterHelper.sendMessage(socket, request, 0);
+        try {
 
-        int recvCount = poller.poll(timeout);
+            AdapterHelper.sendMessage(socket, request, 0);
 
-        if (recvCount == 0) throw new TimeoutException();
+            // wait for messages
+            int recvCount = poller.poll(timeout);
 
-        ReplyWrapper answer = AdapterHelper.recvMessage(socket);
+            if (recvCount == 0) throw new TimeoutException();
 
-        if (answer.isError()) throw (RequestException) answer.getPayload();
+            ReplyWrapper answer = null;
 
-        return (Reply) answer.getPayload();
+            answer = AdapterHelper.recvMessage(socket, 0);
+
+            if (answer.isError()) throw (RequestException) answer.getPayload();
+
+            return (Reply) answer.getPayload();
+
+        } catch (IOException e) {
+            throw new RequestException(e);
+        }
     }
 
     // ZMQ INTERNALS //

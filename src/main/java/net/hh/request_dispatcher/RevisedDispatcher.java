@@ -39,6 +39,8 @@ public class RevisedDispatcher {
     // SERVICE MANAGEMENT //
 
     public void registerService(final Class requestClass, final String endpoint) {
+        log.debug("Registering ServiceAcapter for class " + requestClass);
+
         syncAdapters.put(requestClass, new SyncZmqAdapter(ctx, endpoint));
 
         AsyncZmqAdapter asyncZmqAdapter = new AsyncZmqAdapter(ctx, endpoint);
@@ -54,6 +56,12 @@ public class RevisedDispatcher {
      * @param callback  that handles the response. Executed on gatherResults()
      */
     public void execute(final Serializable request, final Callback callback) {
+        log.debug("Dispatching request of type " + request.getClass());
+
+        if (! asyncAdapters.containsKey(request.getClass())) {
+            throw new IllegalStateException("No adapter registered for class " + request.getClass());
+        }
+
         asyncAdapters.get(request.getClass()).execute(request, callback);
     }
 
@@ -63,6 +71,10 @@ public class RevisedDispatcher {
      * @return response
      */
     public Serializable executeSync(final Serializable request, int timeout) throws TimeoutException, RequestException {
+        if (! syncAdapters.containsKey(request.getClass())) {
+            throw new IllegalStateException("No adapter registered for class " + request.getClass());
+        }
+
         return syncAdapters.get(request.getClass()).sendSync(request, timeout);
     }
 
@@ -79,7 +91,7 @@ public class RevisedDispatcher {
 
             if (messageCount > 0) {
                 for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
-                    asyncZmqAdapter.recvAndExec(0); // non blocking recv
+                    asyncZmqAdapter.recvAndExec(ZMQ.NOBLOCK); // non blocking recv
                 }
             } else { // nc <= 0
                 if (timer.timeLeft() <= 0) {
@@ -87,12 +99,13 @@ public class RevisedDispatcher {
                     timeoutAll();
                     break;
                 } else {
-                    log.warn("Interrupted while polling.");
+                    log.debug("Interrupted while polling.");
                     // TODO: Shutdown sockets?
-                    break;
+                    throw new IllegalStateException();
                 }
             }
         } // while(havePendingCallbacks())
+        log.debug("Finished gathering results.");
     }
 
     /**
@@ -119,7 +132,7 @@ public class RevisedDispatcher {
     /**
      * Manage coordinated shutdown of all sockets.
      */
-    public void shutdown() {
+    public void close() {
         for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
             asyncZmqAdapter.close();
         }
@@ -155,7 +168,7 @@ public class RevisedDispatcher {
          *          always 0   if timeout was set to 0
          */
         public int timeLeft() {
-            if (timeout == -1) return -1;
+            if (timeout == -1)  return -1;
             if (timeout == 0)   return 0;
             return (int) Math.max(0, (timeout - (System.currentTimeMillis() - start_time)));
         }

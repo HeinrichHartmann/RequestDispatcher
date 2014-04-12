@@ -21,7 +21,7 @@ public class AdapterHelper {
     /**
      * Closes socket on ETERM
      */
-    public static void sendMessage(ZMQ.Socket socket, Serializable request, int callbackId)  {
+    public static void sendMessage(ZMQ.Socket socket, Serializable request, int callbackId) throws IOException {
         try {
             ZMsg out = new ZMsg();
 
@@ -35,19 +35,32 @@ public class AdapterHelper {
             if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
                 log.debug("Received ETERM. Closing socket.");
                 socket.close();
+                throw new IOException(e);
             } else {
-                throw e;
+                throw new IOException(e);
             }
         }
     }
 
     /**
+     * Receive and parse multipart message.
      * Closes socket on ETERM
+     *
+     * @param socket    zmq socket to receive message on
+     * @param flag      parameters passed to ZMsg.recvMsg()
+     * @return reply    null if no message is received
+     *
+     * @throws ProtocolException    RequestDispatcher protocol violated
+     * @throws IOException          other IOErrors, e.g. ETERM
      */
-    public static ReplyWrapper recvMessage(ZMQ.Socket socket) {
+    public static ReplyWrapper recvMessage(ZMQ.Socket socket, int flag) throws IOException {
         {
             try {
-                ZMsg message = ZMsg.recvMsg(socket);
+                ZMsg message = ZMsg.recvMsg(socket, flag);
+
+                if (message == null) {
+                    throw new ProtocolException("No message received.");
+                }
 
                 ZFrame[] parts = message.toArray(new ZFrame[3]);
 
@@ -57,10 +70,10 @@ public class AdapterHelper {
                 // 2. Serialized payload
 
                 if (parts.length != 3) {
-                    throw new IllegalArgumentException("Wrong number of Frames. Expected 3.");
+                    throw new ProtocolException("Wrong number of Frames. Expected 3.");
                 }
                 if (parts[0].size() != 0) {
-                    throw new IllegalStateException("First frame is not empty.");
+                    throw new ProtocolException("First frame is not empty.");
                 }
 
                 return new ReplyWrapper(
@@ -71,9 +84,9 @@ public class AdapterHelper {
                 if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
                     log.debug("Received ETERM. Closing socket.");
                     socket.close();
-                    return null;
+                    throw new IOException(e);
                 } else {
-                    throw e;
+                    throw new IOException(e);
                 }
             }
         }
@@ -86,6 +99,12 @@ public class AdapterHelper {
 
     public static int bytes2int(byte[] data) {
         return new BigInteger(data).intValue();
+    }
+
+    public static class ProtocolException extends IOException {
+        public ProtocolException(String message) {
+            super(message);
+        }
     }
 
 }
