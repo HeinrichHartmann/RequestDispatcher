@@ -52,7 +52,7 @@ public class DispatcherErrorTest {
             }
 
             @Override
-            public void onError(RequestException e) throws RequestException {
+            public void onError(RequestException e) {
                 answer[1]="ERROR_CALLBACK";
                 answer[2]=e.getMessage();
             }
