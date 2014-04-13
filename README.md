@@ -22,11 +22,13 @@ the creation of simple remote services.
 In this example we create a remote service that creates globally unique ids.
 First we need to define some shared objects:
 
-
-        // Define shared objects:
+        //
+        //// SHARED OBJECTS
+        //
         String idChannel = "ipc:///idChannel";      // ZMQ Endpoint for communication
         class idRequest implements Serializable {}  // request class for dispatching
 
+        //
         //// SERVER SIDE
         //
         // Setup an idServer with a single thread listening on idChannel
@@ -41,7 +43,7 @@ First we need to define some shared objects:
         });
         proxy.startWorkers();
 
-
+        //
         //// CLIENT SIDE
         //
         // We create a dispatcher object and tell it to send idRequests to the idChannel:
