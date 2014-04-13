@@ -104,7 +104,7 @@ public class ZmqWorkerProxy {
             Thread.sleep(100);
 
             // terminate worker threads
-            controlSocket.send(WorkerCommands.CMD_STOP);
+            controlSocket.send(ZmqWorker.Commands.CMD_STOP);
             for (ZmqWorker worker : managedWorkers) {
                 worker.join();
             }

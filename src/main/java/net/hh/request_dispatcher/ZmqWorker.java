@@ -200,7 +200,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
                     String CMD = controlSocket.recvStr();
                     log.debug("Received Command " + CMD);
 
-                    if (CMD.equals(WorkerCommands.CMD_STOP)) {
+                    if (CMD.equals(Commands.CMD_STOP)) {
                         break;
                     }
                 } else {
@@ -212,6 +212,15 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
             log.info("Terminating Loop closing sockets.");
             closeSockets();
         }
+    }
+
+    /**
+     * Commands for control socket
+     */
+    public static class Commands {
+
+        public static final String CMD_STOP = "STOP";
+
     }
 
 }

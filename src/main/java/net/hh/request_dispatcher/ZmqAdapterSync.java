@@ -15,9 +15,9 @@ import java.util.concurrent.TimeoutException;
  * - save callbacks for later execution
  * - match incoming requests to corresponging callbacks
  */
-class SyncZmqAdapter<Request extends Serializable, Reply extends Serializable> {
+class ZmqAdapterSync<Request extends Serializable, Reply extends Serializable> {
 
-    private final Logger log = Logger.getLogger(SyncZmqAdapter.class);
+    private final Logger log = Logger.getLogger(ZmqAdapterSync.class);
 
     private final ZMQ.Socket socket;
 
@@ -25,12 +25,12 @@ class SyncZmqAdapter<Request extends Serializable, Reply extends Serializable> {
 
     // CONSTRUCTOR //
 
-    public SyncZmqAdapter(ZMQ.Socket socket) {
+    public ZmqAdapterSync(ZMQ.Socket socket) {
         this.socket = socket;
         poller.register(socket, ZMQ.Poller.POLLIN);
     }
 
-    public SyncZmqAdapter(ZMQ.Context ctx, String endpoint) {
+    public ZmqAdapterSync(ZMQ.Context ctx, String endpoint) {
         this(ctx.socket(ZMQ.DEALER));
 
         socket.setLinger(100);

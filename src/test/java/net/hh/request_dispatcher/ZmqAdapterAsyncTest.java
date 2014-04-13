@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Created by hartmann on 4/10/14.
  */
-public class AsyncZmqAdapterTest {
+public class ZmqAdapterAsyncTest {
 
     private final ZMQ.Context ctx = ZMQ.context(0);
 
@@ -26,7 +26,7 @@ public class AsyncZmqAdapterTest {
                 }
             }
     );
-    private final AsyncZmqAdapter<String, String> echoAdapter = new AsyncZmqAdapter<String, String>(ctx, echoChannel);
+    private final ZmqAdapterAsync<String, String> echoAdapter = new ZmqAdapterAsync<String, String>(ctx, echoChannel);
 
     private final String errorChannel = "inproc://errorChannel";
     private final ZmqWorker errorWorker = new ZmqWorker<String, String>(
@@ -39,7 +39,7 @@ public class AsyncZmqAdapterTest {
                 }
             }
     );
-    private final AsyncZmqAdapter<String, String> errorAdapter = new AsyncZmqAdapter<String, String>(ctx, errorChannel);
+    private final ZmqAdapterAsync<String, String> errorAdapter = new ZmqAdapterAsync<String, String>(ctx, errorChannel);
 
 
     private final String sleepChannel = "inproc://sleepChannel";
@@ -54,7 +54,7 @@ public class AsyncZmqAdapterTest {
                 }
             }
     );
-    private final AsyncZmqAdapter<String, String> sleepAdapter = new AsyncZmqAdapter<String, String>(ctx, sleepChannel);
+    private final ZmqAdapterAsync<String, String> sleepAdapter = new ZmqAdapterAsync<String, String>(ctx, sleepChannel);
 
     private AtomicInteger requestCount = new AtomicInteger(0);
     private final String countChannel = "inproc://countChannel";
@@ -69,7 +69,7 @@ public class AsyncZmqAdapterTest {
                 }
             }
     );
-    private final AsyncZmqAdapter<String, String> countAdapter = new AsyncZmqAdapter<String, String>(ctx, countChannel);
+    private final ZmqAdapterAsync<String, String> countAdapter = new ZmqAdapterAsync<String, String>(ctx, countChannel);
 
 
 
@@ -130,9 +130,9 @@ public class AsyncZmqAdapterTest {
             }
         });
 
-        AsyncZmqAdapter.RC rc = errorAdapter.recvAndExec(0);
+        ZmqAdapterAsync.RC rc = errorAdapter.recvAndExec(0);
 
-        Assert.assertEquals(AsyncZmqAdapter.RC.ERR, rc);
+        Assert.assertEquals(ZmqAdapterAsync.RC.ERR, rc);
         Assert.assertEquals("ERR", answer[0]);
     }
 
@@ -155,11 +155,11 @@ public class AsyncZmqAdapterTest {
             }
         });
 
-        AsyncZmqAdapter.RC rc1 = echoAdapter.recvAndExec(0);
-        AsyncZmqAdapter.RC rc2 = echoAdapter.recvAndExec(0);
+        ZmqAdapterAsync.RC rc1 = echoAdapter.recvAndExec(0);
+        ZmqAdapterAsync.RC rc2 = echoAdapter.recvAndExec(0);
 
-        Assert.assertEquals(AsyncZmqAdapter.RC.SUC, rc1);
-        Assert.assertEquals(AsyncZmqAdapter.RC.SUC, rc2);
+        Assert.assertEquals(ZmqAdapterAsync.RC.SUC, rc1);
+        Assert.assertEquals(ZmqAdapterAsync.RC.SUC, rc2);
 
         Assert.assertEquals("MSG0", answer[0]);
         Assert.assertEquals("MSG1", answer[1]);

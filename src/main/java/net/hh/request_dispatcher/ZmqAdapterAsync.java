@@ -22,9 +22,9 @@ import java.util.HashMap;
  *
 
  */
-class AsyncZmqAdapter<Request extends Serializable, Reply extends Serializable> {
+class ZmqAdapterAsync<Request extends Serializable, Reply extends Serializable> {
 
-    private final Logger log = Logger.getLogger(AsyncZmqAdapter.class);
+    private final Logger log = Logger.getLogger(ZmqAdapterAsync.class);
 
     private final ZMQ.Socket socket;
     private final ZMQ.Poller poller = new ZMQ.Poller(1);
@@ -49,14 +49,14 @@ class AsyncZmqAdapter<Request extends Serializable, Reply extends Serializable> 
 
 
     // CONSTRUCTOR //
-    public AsyncZmqAdapter(ZMQ.Socket socket) {
+    public ZmqAdapterAsync(ZMQ.Socket socket) {
         this.socket = socket;
         poller.register(socket, ZMQ.Poller.POLLIN);
 
         this.endpoint = "";
     }
 
-    public AsyncZmqAdapter(ZMQ.Context ctx, String endpoint) {
+    public ZmqAdapterAsync(ZMQ.Context ctx, String endpoint) {
         this.endpoint = endpoint;
 
         socket = ctx.socket(ZMQ.DEALER);
@@ -172,7 +172,7 @@ class AsyncZmqAdapter<Request extends Serializable, Reply extends Serializable> 
 
     @Override
     public String toString() {
-        return "AsyncZmqAdapter{" +
+        return "ZmqAdapterAsync{" +
                 "endpoint=" + endpoint + ", " +
                 "callbackCounter=" + callbackCounter + ", " +
                 "pendingCallbacks=" + pendingCallbacks.size() +

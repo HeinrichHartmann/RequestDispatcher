@@ -18,8 +18,8 @@ public class Dispatcher {
     private Logger log = Logger.getLogger(Dispatcher.class);
 
     private final ZMQ.Context ctx;
-    private final Map<Class, AsyncZmqAdapter> asyncAdapters = new HashMap<Class, AsyncZmqAdapter>();
-    private final Map<Class, SyncZmqAdapter> syncAdapters = new HashMap<Class, SyncZmqAdapter>();
+    private final Map<Class, ZmqAdapterAsync> asyncAdapters = new HashMap<Class, ZmqAdapterAsync>();
+    private final Map<Class, ZmqAdapterSync> syncAdapters = new HashMap<Class, ZmqAdapterSync>();
 
     private final ZMQ.Poller poller = new ZMQ.Poller(0);
 
@@ -37,11 +37,11 @@ public class Dispatcher {
     public void registerService(final Class requestClass, final String endpoint) {
         log.debug("Registering ServiceAcapter for class " + requestClass);
 
-        syncAdapters.put(requestClass, new SyncZmqAdapter(ctx, endpoint));
+        syncAdapters.put(requestClass, new ZmqAdapterSync(ctx, endpoint));
 
-        AsyncZmqAdapter asyncZmqAdapter = new AsyncZmqAdapter(ctx, endpoint);
-        asyncAdapters.put(requestClass, asyncZmqAdapter);
-        poller.register(asyncZmqAdapter.getPollItem());
+        ZmqAdapterAsync zmqAdapterAsync = new ZmqAdapterAsync(ctx, endpoint);
+        asyncAdapters.put(requestClass, zmqAdapterAsync);
+        poller.register(zmqAdapterAsync.getPollItem());
 
     }
 
@@ -99,8 +99,8 @@ public class Dispatcher {
             int messageCount = poller.poll(timer.timeLeft());
 
             if (messageCount > 0) {
-                for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
-                    asyncZmqAdapter.recvAndExec(ZMQ.NOBLOCK); // non blocking recv
+                for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
+                    zmqAdapterAsync.recvAndExec(ZMQ.NOBLOCK); // non blocking recv
                 }
             } else { // nc <= 0
                 if (timer.timeLeft() <= 0) {
@@ -125,8 +125,8 @@ public class Dispatcher {
      * @return true if one or more callbacks are pending.
      */
     private boolean havePendingCallbacks() {
-        for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
-            if (asyncZmqAdapter.hasPendingCallbacks()) return true;
+        for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
+            if (zmqAdapterAsync.hasPendingCallbacks()) return true;
         }
         return false;
     }
@@ -135,8 +135,8 @@ public class Dispatcher {
      * Call timeout() methods of all asyncAdapters.
      */
     private void timeoutAll() {
-        for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
-            asyncZmqAdapter.timeout();
+        for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
+            zmqAdapterAsync.timeout();
         }
     }
 
@@ -146,12 +146,12 @@ public class Dispatcher {
      * Manage coordinated shutdown of all sockets.
      */
     public void close() {
-        for (AsyncZmqAdapter asyncZmqAdapter : asyncAdapters.values()) {
-            asyncZmqAdapter.close();
+        for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
+            zmqAdapterAsync.close();
         }
 
-        for (SyncZmqAdapter syncZmqAdapter : syncAdapters.values()) {
-            syncZmqAdapter.close();
+        for (ZmqAdapterSync zmqAdapterSync : syncAdapters.values()) {
+            zmqAdapterSync.close();
         }
     }
 
@@ -197,7 +197,7 @@ public class Dispatcher {
     }
 
     private void clearDependenciesFromPromises() {
-        for (AsyncZmqAdapter asyncAdapter : asyncAdapters.values()) {
+        for (ZmqAdapterAsync asyncAdapter : asyncAdapters.values()) {
             for(PromiseContainer<Callback> promise : openPromises) {
                 promise.clearDependency(asyncAdapter.lastCallback);
             }

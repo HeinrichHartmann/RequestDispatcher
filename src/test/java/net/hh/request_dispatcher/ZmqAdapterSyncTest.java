@@ -11,7 +11,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * Created by hartmann on 4/10/14.
  */
-public class SyncZmqAdapterTest {
+public class ZmqAdapterSyncTest {
 
     private final ZMQ.Context ctx = ZMQ.context(0);
 
@@ -26,7 +26,7 @@ public class SyncZmqAdapterTest {
                 }
             }
     );
-    private final SyncZmqAdapter<String, String> echoAdapter = new SyncZmqAdapter<String, String>(ctx, echoChannel);
+    private final ZmqAdapterSync<String, String> echoAdapter = new ZmqAdapterSync<String, String>(ctx, echoChannel);
 
     private final String errorChannel = "inproc://errorChannel";
     private final ZmqWorker errorWorker = new ZmqWorker<String, String>(
@@ -39,7 +39,7 @@ public class SyncZmqAdapterTest {
                 }
             }
     );
-    private final SyncZmqAdapter<String, String> errorAdapter = new SyncZmqAdapter<String, String>(ctx, errorChannel);
+    private final ZmqAdapterSync<String, String> errorAdapter = new ZmqAdapterSync<String, String>(ctx, errorChannel);
 
 
     private final String sleepChannel = "inproc://sleepChannel";
@@ -54,7 +54,7 @@ public class SyncZmqAdapterTest {
                 }
             }
     );
-    private final SyncZmqAdapter<String, String> sleepAdapter = new SyncZmqAdapter<String, String>(ctx, sleepChannel);
+    private final ZmqAdapterSync<String, String> sleepAdapter = new ZmqAdapterSync<String, String>(ctx, sleepChannel);
 
 
 
