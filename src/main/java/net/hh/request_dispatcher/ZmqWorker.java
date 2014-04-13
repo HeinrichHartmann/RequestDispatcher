@@ -175,6 +175,11 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
                             reply = new RequestException(e);
                         }
 
+                        if (wrappedRequest.isOneWayRequest()) {
+                            log.debug("Received one way request. No reply sent.");
+                            continue;
+                        }
+
                         log.trace("Sending message " + reply);
                         TransferHelper.sendMessage(
                                 workSocket,

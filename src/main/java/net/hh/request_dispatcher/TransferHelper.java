@@ -185,6 +185,9 @@ class TransferHelper {
             return new TransferWrapper(object, getCallbackId(), getEnvelope());
         }
 
+        public boolean isOneWayRequest() {
+            return getCallbackId() == -1;
+        }
     }
 
     //// Integer conversion
