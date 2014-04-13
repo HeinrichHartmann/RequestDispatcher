@@ -81,7 +81,7 @@ class ZmqAdapterAsync<Request extends Serializable, Reply extends Serializable> 
         }
 
         try {
-            TransferHelper.sendMessage(socket, new TransferHelper.TransferWrapper(request, callbackId));
+            TransferHelper.sendMessage(socket, new TransferWrapper(request, callbackId));
         } catch (TransferHelper.ZmqEtermException e) {
             log.error("ETERM. Closing sockets.");
             close();
@@ -102,7 +102,7 @@ class ZmqAdapterAsync<Request extends Serializable, Reply extends Serializable> 
     public RC recvAndExec(int flag) {
         log.debug("Called recvAndExec() on " + this);
 
-        TransferHelper.TransferWrapper reply = null;
+        TransferWrapper reply = null;
 
         try {
             reply = TransferHelper.recvMessage(socket, flag);

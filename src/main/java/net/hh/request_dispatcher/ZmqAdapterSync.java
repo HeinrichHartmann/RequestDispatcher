@@ -49,14 +49,14 @@ class ZmqAdapterSync<Request extends Serializable, Reply extends Serializable> {
     public Reply sendSync(Request request, int timeout) throws RequestException, TimeoutException {
         try {
 
-            TransferHelper.sendMessage(socket, new TransferHelper.TransferWrapper(request, 0));
+            TransferHelper.sendMessage(socket, new TransferWrapper(request, 0));
 
             // wait for messages
             int recvCount = poller.poll(timeout);
 
             if (recvCount == 0) throw new TimeoutException();
 
-            TransferHelper.TransferWrapper answer = null;
+            TransferWrapper answer = null;
 
             answer = TransferHelper.recvMessage(socket, 0);
 
@@ -68,7 +68,7 @@ class ZmqAdapterSync<Request extends Serializable, Reply extends Serializable> {
 
         } catch (TransferHelper.ZmqEtermException e) {
             log.info("Eterm. Closing socket.");
-            socket.close();
+            close();
             throw new RequestException(e);
         } catch (IOException e) {
             throw new RequestException(e);

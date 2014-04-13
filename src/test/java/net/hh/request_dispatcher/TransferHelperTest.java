@@ -36,24 +36,26 @@ public class TransferHelperTest {
 
     @Test
     public void testRegularRequest() throws Exception {
-        TransferHelper.sendMessage(server, new TransferHelper.TransferWrapper("Hi", 0));
-        TransferHelper.TransferWrapper reply = TransferHelper.recvMessage(client, 0);
+        TransferHelper.sendMessage(server, new TransferWrapper("Hi", 0));
+        TransferWrapper reply = TransferHelper.recvMessage(client, 0);
         Assert.assertEquals("Hi",reply.getObject().toString());
         Assert.assertEquals((Integer) 0 , reply.getCallbackId());
     }
 
     @Test
     public void testNoRecvMessage() throws Exception {
-        TransferHelper.RawTransferWrapper msg = TransferHelper.recvMessage(server, ZMQ.NOBLOCK);
+        TransferWrapperRaw msg = TransferHelper.recvMessage(server, ZMQ.NOBLOCK);
         Assert.assertNull(msg);
     }
 
     @Test(expected = TransferHelper.ProtocolException.class)
     public void testProtocolError() throws Exception {
         ZMsg msg = new ZMsg();
+        msg.push("XX");
         msg.push(new byte[0]);
+        msg.push("XX");
         msg.send(server);
-        TransferHelper.RawTransferWrapper reply = TransferHelper.recvMessage(client, 0);
+        TransferWrapperRaw reply = TransferHelper.recvMessage(client, 0);
     }
 
     @Test(expected = TransferHelper.ProtocolException.class)
@@ -65,7 +67,7 @@ public class TransferHelperTest {
         msg.push(new byte[0]); // Add empty frame as REQ envelope
 
         msg.send(server);
-        TransferHelper.RawTransferWrapper reply = TransferHelper.recvMessage(client, 0);
+        TransferWrapperRaw reply = TransferHelper.recvMessage(client, 0);
     }
 
     @Test(expected = TransferHelper.ProtocolException.class)
@@ -77,7 +79,7 @@ public class TransferHelperTest {
         msg.push("XXX".getBytes()); // non-empty delimiter
 
         msg.send(server);
-        TransferHelper.RawTransferWrapper reply = TransferHelper.recvMessage(client, 0);
+        TransferWrapperRaw reply = TransferHelper.recvMessage(client, 0);
     }
 
 

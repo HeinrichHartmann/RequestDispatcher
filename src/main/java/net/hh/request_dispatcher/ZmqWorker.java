@@ -2,7 +2,6 @@ package net.hh.request_dispatcher;
 
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMsg;
 
 import java.io.Serializable;
 
@@ -101,40 +100,6 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
         controlSocket.close();
     }
 
-    ///////////////////// MESSAGING //////////////////////////
-
-    private ZMsg lastMsg = new ZMsg();
-
-    /**
-     * Read multipart-message from socket.
-     * Returns the last message frame as binary blop.
-     * <p/>
-     * Side: Stores the remaining part of the message for use in sendPayload()
-     *
-     * TODO: Handle Context Termination. ZMQEception is thrown here.
-     * @return payload containing the received data
-     */
-    private byte[] recvPayload() {
-        lastMsg = ZMsg.recvMsg(workSocket, ZMQ.NOBLOCK);
-        log.debug("Received message " + lastMsg);
-        return lastMsg.pollLast().getData();
-    }
-
-    /**
-     * Send payload to peer.
-     * <p/>
-     * Restores request envelope by appending the contents the payload
-     * last part to stored multipart message.
-     *
-     * TODO: Handle Context Termination. ZMQEception is thrown here.
-     * @param payload
-     */
-    private void sendPayload(byte[] payload) {
-        lastMsg.addLast(payload);
-        log.debug("Sending message " + lastMsg);
-        lastMsg.send(workSocket);
-    }
-
     ////////////////////// WORKER LOGIC ////////////////////////
 
     @Override
@@ -145,9 +110,6 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
                 throw new IllegalStateException("Sockets not initialized");
             }
 
-            byte[] requestPayload = new byte[0];
-            Serializable reply = null;
-
             ZMQ.Poller poller = new ZMQ.Poller(2);
 
             ZMQ.PollItem payloadPoller = new ZMQ.PollItem(workSocket, ZMQ.Poller.POLLIN);
@@ -156,16 +118,16 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
             ZMQ.PollItem controlPoller = new ZMQ.PollItem(controlSocket, ZMQ.Poller.POLLIN);
             poller.register(controlPoller);
 
+            // Loop variables
+            Serializable reply = null;
+
             while (!Thread.interrupted()) {
                 log.trace("Waiting for messages.");
                 poller.poll();
 
                 if (payloadPoller.isReadable()) {
                     try {
-                        TransferHelper.TransferWrapper wrappedRequest = TransferHelper.recvMessage(
-                                workSocket,
-                                ZMQ.NOBLOCK);
-
+                        TransferWrapper wrappedRequest = TransferHelper.recvMessage(workSocket,ZMQ.NOBLOCK);
                         log.trace("Received message " + wrappedRequest);
 
                         try {
@@ -185,13 +147,11 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
                                 workSocket,
                                 wrappedRequest.constructReply(reply)
                         );
-
                     } catch (ClassCastException e) {
                         log.error("Cannot cast request object", e);
                         // continue with next request
                     } catch (TransferHelper.ProtocolException | SerializationException e) {
                         log.error(e);
-
                     } catch (TransferHelper.ZmqEtermException e) {
                         log.error(e);
                         break;
