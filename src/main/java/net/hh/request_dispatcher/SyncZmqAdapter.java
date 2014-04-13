@@ -41,7 +41,7 @@ class SyncZmqAdapter<Request extends Serializable, Reply extends Serializable> {
     /**
      * @param request           to be sent to server
      * @param timeout           in ms. if 0 it will return immediately. -1 means infinite wait.
-     * @return response         as provided by server
+     * @return response         never null.
      *
      * @throws RequestException thrown by request handler
      * @throws TimeoutException thrown on timeout
@@ -49,21 +49,27 @@ class SyncZmqAdapter<Request extends Serializable, Reply extends Serializable> {
     public Reply sendSync(Request request, int timeout) throws RequestException, TimeoutException {
         try {
 
-            TransferHelper.sendMessage(socket, request, 0);
+            TransferHelper.sendMessage(socket, new TransferHelper.TransferWrapper(request, 0));
 
             // wait for messages
             int recvCount = poller.poll(timeout);
 
             if (recvCount == 0) throw new TimeoutException();
 
-            TransferWrapper answer = null;
+            TransferHelper.TransferWrapper answer = null;
 
             answer = TransferHelper.recvMessage(socket, 0);
 
-            if (answer.isError()) throw (RequestException) answer.getPayload();
+            if (answer == null) { throw new IllegalStateException("Poller signaled, but no message received."); }
 
-            return (Reply) answer.getPayload();
+            if (answer.isError()) throw (RequestException) answer.getObject();
 
+            return (Reply) answer.getObject();
+
+        } catch (TransferHelper.ZmqEtermException e) {
+            log.info("Eterm. Closing socket.");
+            socket.close();
+            throw new RequestException(e);
         } catch (IOException e) {
             throw new RequestException(e);
         }

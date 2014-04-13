@@ -81,7 +81,10 @@ class AsyncZmqAdapter<Request extends Serializable, Reply extends Serializable> 
         }
 
         try {
-            TransferHelper.sendMessage(socket, request, callbackId);
+            TransferHelper.sendMessage(socket, new TransferHelper.TransferWrapper(request, callbackId));
+        } catch (TransferHelper.ZmqEtermException e) {
+            log.error("ETERM. Closing sockets.");
+            close();
         } catch (IOException e) {
             log.error(e);
         }
@@ -99,20 +102,26 @@ class AsyncZmqAdapter<Request extends Serializable, Reply extends Serializable> 
     public RC recvAndExec(int flag) {
         log.debug("Called recvAndExec() on " + this);
 
-        TransferWrapper reply = null;
+        TransferHelper.TransferWrapper reply = null;
 
         try {
             reply = TransferHelper.recvMessage(socket, flag);
             log.debug("Recieved message " + reply);
+        } catch (TransferHelper.ZmqEtermException e) {
+            log.error(e);
+            close();
+            return RC.NO_MESSAGE;
         } catch (IOException e) {
             log.error(e);
             return RC.NO_MESSAGE;
         }
 
+        if (reply == null) { return RC.NO_MESSAGE; }
+
         Callback<Reply> callback = pendingCallbacks.get(reply.getCallbackId());
         pendingCallbacks.remove(reply.getCallbackId());
 
-        // DIRTY HACK
+        // DIRTY HACK to executed callbacks accessible from outside the class
         lastCallback = callback;
 
         if (callback == null) {
@@ -121,10 +130,10 @@ class AsyncZmqAdapter<Request extends Serializable, Reply extends Serializable> 
         }
 
         if (reply.isError()) {
-            callback.onError((RequestException) reply.getPayload());
+            callback.onError((RequestException) reply.getObject());
             return RC.ERR;
         } else {
-            callback.onSuccess((Reply) reply.getPayload());
+            callback.onSuccess((Reply) reply.getObject());
             return RC.SUC;
         }
     }

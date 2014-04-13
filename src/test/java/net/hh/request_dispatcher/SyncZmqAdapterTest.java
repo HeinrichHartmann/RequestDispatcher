@@ -1,10 +1,6 @@
 package net.hh.request_dispatcher;
 
 import junit.framework.Assert;
-import net.hh.request_dispatcher.SyncZmqAdapter;
-import net.hh.request_dispatcher.RequestException;
-import net.hh.request_dispatcher.RequestHandler;
-import net.hh.request_dispatcher.ZmqWorker;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -98,6 +94,4 @@ public class SyncZmqAdapterTest {
     public void testSendSyncTimeout() throws Exception {
         String response = sleepAdapter.sendSync("MSG", 50);
     }
-
-
 }

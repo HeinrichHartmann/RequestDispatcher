@@ -17,80 +17,177 @@ class TransferHelper {
 
     private static final Logger log = Logger.getLogger(TransferHelper.class);
 
-    /**
-     * Closes socket on ETERM
-     */
-    public static void sendMessage(ZMQ.Socket socket, Serializable request, int callbackId) throws IOException {
+    public static void sendMessage(ZMQ.Socket socket, TransferWrapper transferWrapper) throws ZmqEtermException {
         try {
-            ZMsg out = new ZMsg();
-
-            out.push(SerializationHelper.serialize(request));
-            out.push(int2bytes(callbackId));
-            out.push(new byte[0]); // Add empty frame as REQ envelope
-
-            boolean rc = out.send(socket);
+            boolean rc = transferWrapper.toMessage().send(socket);
             if (!rc) throw new ZMQException.IOException(new IOException("Error sending message"));
         } catch (ZMQException e) {
             if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
-                log.debug("Received ETERM. Closing socket.");
-                socket.close();
-                throw new IOException(e);
+                log.debug("Received ETERM.");
+                throw new ZmqEtermException(e);
             } else {
-                throw new IOException(e);
+                throw e;
             }
         }
     }
 
     /**
      * Receive and parse multipart message.
-     * Closes socket on ETERM
      *
      * @param socket    zmq socket to receive message on
      * @param flag      parameters passed to ZMsg.recvMsg()
      * @return reply    null if no message is received
      *
      * @throws ProtocolException    RequestDispatcher protocol violated
-     * @throws IOException          other IOErrors, e.g. ETERM
+     * @throws ZmqEtermException    when context is closed while receiving messages
+     * @throws IOException          other IOErrors (encompasses Protocol and ZmqEtermException)
      */
-    public static TransferWrapper recvMessage(ZMQ.Socket socket, int flag) throws IOException {
+    public static TransferWrapper recvMessage(ZMQ.Socket socket, int flag) throws ZmqEtermException, ProtocolException {
         {
             try {
                 ZMsg message = ZMsg.recvMsg(socket, flag);
 
-                if (message == null) {
-                    throw new ProtocolException("No message received.");
+                if (message == null || message.size() == 0 ) {
+                    // message.size() check works around bug in jeromq:
+                    // https://github.com/zeromq/jeromq/commit/750b5f408ab2e925d17de700eda3e16185b770fc
+                    return null;
                 }
 
-                ZFrame[] parts = message.toArray(new ZFrame[3]);
+                return new TransferWrapper(message);
 
-                // Expect message to have three parts:
-                // 0. Empty Delimiter Frame
-                // 1. Serialized callback ID
-                // 2. Serialized payload
-
-                if (parts.length != 3) {
-                    throw new ProtocolException("Wrong number of Frames. Expected 3.");
-                }
-                if (parts[0].size() != 0) {
-                    throw new ProtocolException("First frame is not empty.");
-                }
-
-                return new TransferWrapper(
-                        SerializationHelper.deserialize(parts[2].getData()),
-                        bytes2int(parts[1].getData())
-                );
             } catch (ZMQException e) {
                 if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()){
-                    log.debug("Received ETERM. Closing socket.");
-                    socket.close();
-                    throw new IOException(e);
+                    log.debug("Received ETERM.");
+                    throw new ZmqEtermException(e);
                 } else {
-                    throw new IOException(e);
+                    throw e;
                 }
             }
         }
     }
 
+    /**
+     * Wraps payload and callbackId and evelope frames
+     */
+    static class RawTransferWrapper {
+        protected final byte[]        payload;
+        private final Integer       callbackId;
+        private final ZFrame[]      envelope;
+
+        public RawTransferWrapper(byte[] payload, Integer callbackId, ZFrame[] envelope) {
+            this.payload = payload;
+            this.callbackId = callbackId;
+            this.envelope = envelope;
+        }
+
+        public RawTransferWrapper(ZMsg message) throws ProtocolException {
+            int N = message.size();
+
+            // Expect message at least three parts:
+            // 0       envelope frame         -> envelope[N-4]
+            // ...
+            // N-4     envelope frame         -> envelope[0]
+            // N-3     Empty Delimiter Frame
+            // N-2     Serialized callback ID -> callbackId
+            // N-1     Serialized payload     -> payload
+
+            if (N <= 2) {
+                throw new ProtocolException("Wrong number of Frames. Expected lower than 3: " + message.size());
+            }
+
+            ZFrame payloadFrame = message.pollLast();
+            ZFrame callbackFrame = message.pollLast();
+            ZFrame delimiterFrame = message.pollLast();
+
+            if (delimiterFrame.size() != 0) {
+                throw new ProtocolException("Delimiter frame not empty.");
+            }
+
+            callbackId = bytes2int(callbackFrame.getData());
+
+            payload = payloadFrame.getData();
+
+            envelope = new ZFrame[N-3];
+            for(int i = 0; i < N-3; i++) {
+                envelope[i] = message.pollLast();
+            }
+
+            if (message.size() != 0) throw new IllegalStateException("Message not empty.");
+        }
+
+        public ZMsg toMessage() {
+            ZMsg out = new ZMsg();
+
+            out.addFirst(payload);
+            out.addFirst(int2bytes(callbackId));
+            out.addFirst(new byte[0]);
+
+            for (ZFrame f : envelope){
+                out.addFirst(f);
+            }
+
+            return out;
+        }
+
+        public Integer getCallbackId() {
+            return callbackId;
+        }
+
+        public ZFrame[] getEnvelope() {
+            return envelope;
+        }
+
+        @Override
+        public String toString() {
+            return "RawTransferWrapper{" +
+                    "payload=" + payload +
+                    ", callbackId=" + callbackId +
+                    ", envelope.length=" + envelope.length +
+                    '}';
+        }
+
+    }
+
+    /**
+     * Additional methods for serialization added.
+     */
+    public final static class TransferWrapper extends RawTransferWrapper {
+
+        private final Serializable object;
+
+        public TransferWrapper(Serializable object, Integer callbackId) throws SerializationException {
+            this(object, callbackId, new ZFrame[0]);
+        }
+
+        public TransferWrapper(ZMsg message) throws ProtocolException {
+            super(message);
+            try {
+                this.object = SerializationHelper.deserialize(payload);
+            } catch (SerializationException e) {
+                throw new ProtocolException(e);
+            }
+        }
+
+        private TransferWrapper(Serializable object, Integer callbackId, ZFrame[] envelope) throws SerializationException {
+            super(SerializationHelper.serialize(object), callbackId, envelope);
+            this.object = object;
+        }
+
+        public Serializable getObject() {
+            return object;
+        }
+
+        public boolean isError() {
+            return object instanceof RequestException;
+        }
+
+        public TransferWrapper constructReply(Serializable object) throws SerializationException {
+            return new TransferWrapper(object, getCallbackId(), getEnvelope());
+        }
+
+    }
+
+    //// Integer conversion
 
     public static byte[] int2bytes(int i) {
         return BigInteger.valueOf(i).toByteArray();
@@ -100,10 +197,28 @@ class TransferHelper {
         return new BigInteger(data).intValue();
     }
 
-    public static class ProtocolException extends IOException {
+    /**
+     * thrown when Dispatcher protocol is violated
+     */
+    static class ProtocolException extends IOException {
         public ProtocolException(String message) {
             super(message);
         }
+
+        public ProtocolException(Exception e) {
+            super(e);
+        }
     }
+
+    /**
+     * thrown when context is closed on blocking recv.
+     */
+    static class ZmqEtermException extends IOException {
+        ZmqEtermException(Exception e) {
+            super(e);
+        }
+    }
+
+
 
 }

@@ -146,9 +146,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
             }
 
             byte[] requestPayload = new byte[0];
-            RequestType request = null;
-            ReplyType reply = null;
-            byte[] replyPayload = new byte[0];
+            Serializable reply = null;
 
             ZMQ.Poller poller = new ZMQ.Poller(2);
 
@@ -159,36 +157,39 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
             poller.register(controlPoller);
 
             while (!Thread.interrupted()) {
-                log.trace("Polling for messages.");
+                log.trace("Waiting for messages.");
                 poller.poll();
 
                 if (payloadPoller.isReadable()) {
                     try {
-                        //TODO: Better exception handling
-                        requestPayload = recvPayload();
+                        TransferHelper.TransferWrapper wrappedRequest = TransferHelper.recvMessage(
+                                workSocket,
+                                ZMQ.NOBLOCK);
 
-                        if (requestPayload == null) {
-                            log.warn("Received empty payload");
-                            continue;
-                        }
-
-                        request = (RequestType) SerializationHelper.deserialize(requestPayload);
-                        log.trace("Received " + request);
+                        log.trace("Received message " + wrappedRequest);
 
                         try {
-                            reply = handler.handleRequest(request);
-                            replyPayload = SerializationHelper.serialize(reply);
+                            reply = handler.handleRequest((RequestType) wrappedRequest.getObject());
                         } catch (Exception e) {
                             log.warn("Catched exception. Sending back to client.", e);
-                            replyPayload = SerializationHelper.serialize(new RequestException(e));
+                            reply = new RequestException(e);
                         }
 
-                        // TODO: Sent no response when there is no callback: CallbackId = -1
-                        sendPayload(replyPayload);
+                        log.trace("Sending message " + reply);
+                        TransferHelper.sendMessage(
+                                workSocket,
+                                wrappedRequest.constructReply(reply)
+                        );
 
                     } catch (ClassCastException e) {
                         log.error("Cannot cast request object", e);
                         // continue with next request
+                    } catch (TransferHelper.ProtocolException | SerializationException e) {
+                        log.error(e);
+
+                    } catch (TransferHelper.ZmqEtermException e) {
+                        log.error(e);
+                        break;
                     }
                 } else if (controlPoller.isReadable()) {
                     String CMD = controlSocket.recvStr();
