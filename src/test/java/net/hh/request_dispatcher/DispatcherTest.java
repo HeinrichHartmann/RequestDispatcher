@@ -27,7 +27,7 @@ public class DispatcherTest {
 
     @After
     public void tearDown() throws Exception {
-        dp.close(); // close sockets
+        dp.shutdown(); // close sockets
         ctx.term();
     }
 

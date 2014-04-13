@@ -1,10 +1,5 @@
 package net.hh.request_dispatcher;
 
-import net.hh.request_dispatcher.Callback;
-import net.hh.request_dispatcher.Dispatcher;
-import net.hh.request_dispatcher.RequestHandler;
-import net.hh.request_dispatcher.ZmqWorker;
-import net.hh.request_dispatcher.ZmqWorkerProxy;
 import org.junit.Assert;
 import org.junit.Test;
 import org.zeromq.ZMQ;
@@ -84,7 +79,7 @@ public class ZmqWorkerProxyTest {
         }
 
         dp.gatherResults();
-        dp.close();
+        dp.shutdown();
 
         Thread.sleep(100);
 

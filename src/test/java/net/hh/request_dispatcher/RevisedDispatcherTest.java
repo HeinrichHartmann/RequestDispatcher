@@ -78,7 +78,7 @@ public class RevisedDispatcherTest {
 
     @After
     public void tearDown() throws Exception {
-        dp.close(); // closes adapter sockets.
+        dp.shutdown(); // closes adapter sockets.
 
         ctx.term(); // shuts down workers.
     }

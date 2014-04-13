@@ -18,6 +18,7 @@ public class Dispatcher {
     private Logger log = Logger.getLogger(Dispatcher.class);
 
     private final ZMQ.Context ctx;
+    private final boolean isContextOwner;
     private final Map<Class, ZmqAdapterAsync> asyncAdapters = new HashMap<Class, ZmqAdapterAsync>();
     private final Map<Class, ZmqAdapterSync> syncAdapters = new HashMap<Class, ZmqAdapterSync>();
 
@@ -26,10 +27,12 @@ public class Dispatcher {
     // CONSTRUCTORS //
     public Dispatcher(ZMQ.Context ctx) {
         this.ctx = ctx;
+        isContextOwner = false;
     }
 
     public Dispatcher() {
-        this(ZMQ.context(1));
+        this.ctx = ZMQ.context(1);
+        this.isContextOwner = true;
     }
 
     // SERVICE MANAGEMENT //
@@ -144,8 +147,10 @@ public class Dispatcher {
 
     /**
      * Manage coordinated shutdown of all sockets.
+     *
+     * If context was constructed by the Dispatcher. The context is also terminated.
      */
-    public void close() {
+    public void shutdown() {
         for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
             zmqAdapterAsync.close();
         }
@@ -153,6 +158,11 @@ public class Dispatcher {
         for (ZmqAdapterSync zmqAdapterSync : syncAdapters.values()) {
             zmqAdapterSync.close();
         }
+
+        if(isContextOwner) {
+            ctx.term();
+        }
+
     }
 
     //// HELPER

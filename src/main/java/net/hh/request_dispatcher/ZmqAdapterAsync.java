@@ -15,12 +15,10 @@ import java.util.HashMap;
  * - save callbacks for later execution
  * - match incoming requests to corresponging callbacks
  *
- * ZMQ Shutdown;
- * - Context is *not* terminated by this class.
- * - Non-blocking use: Call close before terminating context.
- * - Blocking sockets are closed when ctx.term() is called.
- *
-
+ * Owns a ZMQ Socket;
+ * - socket is created in constructor
+ * - can be manually closed with close() method
+ * - closes automatically on ETERM events.
  */
 class ZmqAdapterAsync<Request extends Serializable, Reply extends Serializable> {
 

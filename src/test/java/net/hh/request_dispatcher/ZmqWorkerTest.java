@@ -82,7 +82,7 @@ public class ZmqWorkerTest {
 
     @After
     public void tearDown() throws Exception {
-        dp.close();
+        dp.shutdown();
         ctx.term();
         stringWorker.join();
     }

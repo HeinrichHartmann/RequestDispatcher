@@ -1,10 +1,5 @@
 package net.hh.request_dispatcher;
 
-import net.hh.request_dispatcher.Callback;
-import net.hh.request_dispatcher.Dispatcher;
-import net.hh.request_dispatcher.RequestException;
-import net.hh.request_dispatcher.RequestHandler;
-import net.hh.request_dispatcher.ZmqWorker;
 import org.junit.Assert;
 import org.junit.Test;
 import org.zeromq.ZMQ;
@@ -60,7 +55,7 @@ public class DispatcherErrorTest {
         dp.gatherResults();
 
         // SHUTDOWN
-        dp.close();
+        dp.shutdown();
         ctx.term();
         worker.join();
 

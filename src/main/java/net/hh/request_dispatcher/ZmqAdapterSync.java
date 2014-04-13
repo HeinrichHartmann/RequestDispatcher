@@ -13,7 +13,12 @@ import java.util.concurrent.TimeoutException;
  * Features:
  * - Send messages to remote service.
  * - save callbacks for later execution
- * - match incoming requests to corresponging callbacks
+ * - match incoming requests to corresponding callbacks
+ *
+ * Owns a ZMQ Socket.
+ * - socket is created in constructor
+ * - can be manually closed with close() method
+ * - closes automatically on ETERM.
  */
 class ZmqAdapterSync<Request extends Serializable, Reply extends Serializable> {
 
@@ -65,12 +70,14 @@ class ZmqAdapterSync<Request extends Serializable, Reply extends Serializable> {
 
             return (Reply) answer.getObject();
 
+        } catch (TransferHelper.ZmqEtermException e) {
+            log.error("ETERM. Closing socket.");
+            close();
+            throw new RequestException(e);
         } catch (IOException e) {
             throw new RequestException(e);
         }
     }
-
-    // ZMQ INTERNALS //
 
     /**
      * Close socket.
