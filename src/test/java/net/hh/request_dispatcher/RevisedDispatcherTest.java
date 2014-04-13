@@ -1,9 +1,6 @@
 package net.hh.request_dispatcher;
 
 import junit.framework.Assert;
-import net.hh.request_dispatcher.server.RequestException;
-import net.hh.request_dispatcher.server.RequestHandler;
-import net.hh.request_dispatcher.server.ZmqWorker;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

@@ -1,8 +1,5 @@
 package net.hh.request_dispatcher;
 
-import net.hh.request_dispatcher.server.RequestException;
-import net.hh.request_dispatcher.service_adapter.AsyncZmqAdapter;
-import net.hh.request_dispatcher.service_adapter.SyncZmqAdapter;
 import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
 

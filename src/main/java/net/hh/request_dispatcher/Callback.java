@@ -1,6 +1,5 @@
 package net.hh.request_dispatcher;
 
-import net.hh.request_dispatcher.server.RequestException;
 import org.apache.log4j.Logger;
 
 import java.io.Serializable;
