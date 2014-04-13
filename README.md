@@ -3,46 +3,72 @@ RequestDispatcher
 [![Build Status](https://travis-ci.org/HeinrichHartmann/RequestDispatcher.svg?branch=master)](https://travis-ci.org/HeinrichHartmann/RequestDispatcher)
 
 Java library for dispatching request to extrenal services over ZeroMQ
-sockets.
+sockets. The library targets use inside Java Servlet Containers, 
+like Apache Tomcat, which expose a multithreaded environment.
 
-The library targets use inside Java Servlet Containers, like Apache
-Tomcat, which expose a multithreaded environment.
-
-
-    // create and open sockets and register services at dispatcher
-    Dispatcher dispatcher = new Dispatcher();
-    dispatcher.registerService(serviceID, new ZmqService(serviceEndpoint))
-
-    // execute a new request
-    disatcher.execute(
-	  serviceID,
-      new Request("Message to be send to service."),
-      new Callback<TestReply>(new Reply()) {
-        @Override
-        public void onSuccess(Reply reply) {
-		// Code to be executed when response arrives at server
-		}
-     });
-
-    // execute another request
-    dispatcher.execute(otherRequest, otherCallback);
-
-    // listen for messages and execute callbacks
-    dispatcher.gatherResults()
-
-    // cleanup
-    dispatcher.close()
-
-Here `serviceId` and `serviceEndpoint` are string variables,
-customized for the external service.
+It comes acompanied with ZmqWorker and ZmqProxy classes that allow 
+the creation of simple remote services.
 
 ### Features
 
 * Non-blocking access to remote Request/Reply ZMQ services.
-* Asynchronus dispatching of several requests before the replys are
-  received.
-* Single threaded callback execution
-* Thread savety. (i.e. usable in multithreaded environments.
+* Asynchronus dispatching of several requests before the replys are received.
+* Single threaded callback execution (gatherResults())
+* Forwarding of Exceptions 
+* One way requests (with callback = null)
+
+### Example: id server
+
+In this example we create a remote service that creates globally unique ids.
+First we need to define some shared objects:
+
+        String idChannel = "ipc:///idChannel";		// ZMQ Endpoint for communication
+        class idRequest implements Serializable {}	// request class for dispatching
+
+Now we create and start the id server:
+
+        ZmqWorkerProxy proxy = new ZmqWorkerProxy(idChannel);
+        proxy.add(1, new RequestHandler<idRequest, Long>() {
+            long currentId = 0;
+
+            @Override
+            public Long handleRequest(idRequest request) throws Exception {
+                return currentId++;
+            }
+        });
+        proxy.startWorkers();
+
+That's it. The server is now up and running and returns increasing numbers to our requests.
+Now, to the client. We create a dispatcher object and tell it to send idRequests to the idChannel:
+
+        Dispatcher dispatcher = new Dispatcher();
+        dispatcher.registerService(idRequest.class, idChannel);
+
+We can now use the dispatcher as follows:
+
+	long id = (Long) dispatcher.executeSync(new idRequest());
+	
+This command sends a idRequest to the worker waits for the result and returns it a Serializable object.
+For asyncrhonus calls use:
+
+        dispatcher.execute(new idRequest(), new Callback<Long>() {
+            @Override
+            public void onSuccess(Long id) {
+                System.out.println("Received id: " + id);
+            }
+        });
+
+The request is now sent to the server, and when the response comes back it is queued in the socket. 
+To execute defined callback we need to call:
+
+    	dispatcher.gatherResults()
+
+When we are finished call:
+
+        dispatcher.shutdown();
+        proxy.shutdown();
+
+to close all sockets and terminate the ZMQ context.
 
 ### Components
 
