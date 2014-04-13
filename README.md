@@ -4,7 +4,7 @@ RequestDispatcher
 
 Java library for dispatching request to extrenal services over ZeroMQ
 sockets. The library targets use inside Java Servlet Containers, 
-like Apache Tomcat, which expose a multithreaded environment.
+like Apache Tomcat, which expose a multithreaded environment. 
 
 It comes acompanied with ZmqWorker and ZmqProxy classes that allow 
 the creation of simple remote services.
@@ -76,17 +76,11 @@ First we need to define some shared objects:
         proxy.shutdown();
         
         
-### Components
-
-* Request/Reply interfaces. To be implemented by new services and
-  instanciated for requests. The objects are serialized and sent
-  over the wire.
-* Abstract Callback Class. To be extended by callback anonymous inner
-  classes (AIC), hat handle the replies.
-* Dispatcher Class. Orchestrages serivces and callback execution in a
-  synchronus event loop.
-* ZMQ Network Service library. Handles socket communication and polling.
-
 ### Control Flow 
 
 ![Image of control flow](https://raw.github.com/HeinrichHartmann/RequestDispatcher/master/img/DispatcherControlFlow.png "Request dispatcher control flow")
+
+### Acknowledgements
+
+This project used by the [metalcon.de](https://github.com/Metalcon/) project, which have provided 
+the initial motivation to write this tool and contrinuted a lot of valuable feedback.
