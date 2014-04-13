@@ -68,6 +68,8 @@ public class Dispatcher {
      * @param request   sent to the registered service. Null on timeout.
      * @param timeout   in ms.
      * @return response
+     *
+     * @throws java.lang.IllegalStateException if no sericve is registered for request class.
      */
     public Serializable executeSync(final Serializable request, int timeout) throws TimeoutException, RequestException {
         if (! syncAdapters.containsKey(request.getClass())) {
@@ -75,6 +77,23 @@ public class Dispatcher {
         }
 
         return syncAdapters.get(request.getClass()).sendSync(request, timeout);
+    }
+
+    /**
+     * Send request to registered channel.
+     *
+     * @param request   to service
+     * @return response from service
+     *
+     * @throws java.lang.IllegalStateException if no sericve is registered for request class.
+     */
+    public Serializable executeSync(final Serializable request) {
+        try {
+            return executeSync(request,-1);
+        } catch (TimeoutException e) {
+            // never happens since infinite wait
+            throw new IllegalStateException();
+        }
     }
 
     // CALLBACK EXECUTION //

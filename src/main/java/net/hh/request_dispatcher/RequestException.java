@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Wrapper class for Execptions thrown by RequestHandler
  */
-public class RequestException extends Exception implements Serializable {
+public class RequestException extends RuntimeException implements Serializable {
     public RequestException() {
     }
 

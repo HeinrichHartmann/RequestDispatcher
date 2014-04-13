@@ -4,6 +4,7 @@ import org.apache.log4j.Logger;
 import org.zeromq.ZMQ;
 import zmq.Proxy;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -111,7 +112,7 @@ public class ZmqWorkerProxy {
             controlSocket.close();
 
             ctx.term();
-            // terminates proxy loop and closes remaining sockets
+            // terminates proxy loop and closes outsideSocket and payloadSocket.
 
             state = State.stopped;
 
@@ -191,5 +192,19 @@ public class ZmqWorkerProxy {
         log.info("Terminated proxy");
         outsideSocket.close();
         payloadSocket.close();
+    }
+
+    //// Convenience methods
+
+    /**
+     * Adds multiple workers that handle request to proxy object.
+     *
+     * @param numWorkers     number of concurrent workers
+     * @param handler       handles request
+     */
+    public <S extends Serializable,T extends Serializable>  void add(int numWorkers, RequestHandler<S,T> handler) {
+        for (int i=0; i<numWorkers; i++) {
+            add(new ZmqWorker<S,T>(handler));
+        }
     }
 }
