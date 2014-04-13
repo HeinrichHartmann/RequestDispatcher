@@ -1,8 +1,6 @@
 package net.hh.request_dispatcher;
 
 import junit.framework.Assert;
-import net.hh.request_dispatcher.Serializer;
-import net.hh.request_dispatcher.XmlSerializer;
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -10,9 +8,9 @@ import java.io.Serializable;
 /**
  * Created by hartmann on 4/2/14.
  */
-public class XmlSerializerTest {
+public class SerializerImplXmlTest {
 
-    private Serializer ser = new XmlSerializer();
+    private Serializer ser = new SerializerImplXml();
 
     public void testSerialize(Serializable o) throws Exception {
         Assert.assertEquals(o, ser.deserialize(ser.serialize(o)));

@@ -9,7 +9,7 @@ import java.io.Serializable;
  */
 class SerializationHelper {
 
-    private static Serializer serializer = new XmlSerializer();
+    private static Serializer serializer = new SerializerImplBinary();
 
     /**
      * Serialize object to binary blop.
@@ -17,7 +17,7 @@ class SerializationHelper {
      * @param object
      * @return blop     encoded object.
      */
-    public static byte[] serialize(Serializable object){
+    public static byte[] serialize(Serializable object) throws SerializationException {
         return serializer.serialize(object);
     }
 
@@ -28,9 +28,12 @@ class SerializationHelper {
      * @param blop
      * @return object
      */
-    public static Serializable deserialize(byte[] blop) {
-        return (Serializable) serializer.deserialize(blop);
+    public static Serializable deserialize(byte[] blop) throws SerializationException {
+        try {
+            return (Serializable) serializer.deserialize(blop);
+        } catch (ClassCastException e) {
+            throw new SerializationException(e);
+        }
     }
-
 
 }

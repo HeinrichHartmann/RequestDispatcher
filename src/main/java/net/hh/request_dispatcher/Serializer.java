@@ -14,8 +14,10 @@ interface Serializer {
      *
      * @param object
      * @return blop     encoded object.
+     *
+     * @throws SerializationException if serialization fails
      */
-    public byte[] serialize(Serializable object);
+    public byte[] serialize(Serializable object) throws SerializationException;
 
     /**
      * Create object from binary blop.
@@ -24,6 +26,6 @@ interface Serializer {
      * @param blop
      * @return object
      */
-    public Object deserialize(byte[] blop);
+    public Object deserialize(byte[] blop) throws SerializationException;
 
 }
