@@ -10,19 +10,15 @@ import java.io.Serializable;
  */
 class SerializerImplBinary implements Serializer {
 
-    public byte[] serialize(Serializable o) throws SerializationException {
-        try {
+    public byte[] serialize(Serializable o) {
             return SerializationUtils.serialize(o);
-        } catch (org.apache.commons.lang3.SerializationException e) {
-            throw new SerializationException(e);
-        }
     }
 
-    public Object deserialize(byte[] data) throws SerializationException {
+    public Object deserialize(byte[] data) throws CheckedSerializationException {
         try {
             return SerializationUtils.deserialize(data);
         } catch (org.apache.commons.lang3.SerializationException e) {
-            throw new SerializationException(e);
+            throw new CheckedSerializationException(e);
         }
     }
 

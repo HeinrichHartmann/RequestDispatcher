@@ -16,8 +16,12 @@ class SerializationHelper {
      *
      * @param object
      * @return blop     encoded object.
+     * @throws org.apache.commons.lang3.SerializationException if serialization fails.
+     *                  as this is a rare event and is caused by a programming error,
+     *                  this exception is unchecked.
+     *
      */
-    public static byte[] serialize(Serializable object) throws SerializationException {
+    public static byte[] serialize(Serializable object) {
         return serializer.serialize(object);
     }
 
@@ -28,11 +32,11 @@ class SerializationHelper {
      * @param blop
      * @return object
      */
-    public static Serializable deserialize(byte[] blop) throws SerializationException {
+    public static Serializable deserialize(byte[] blop) throws CheckedSerializationException {
         try {
             return (Serializable) serializer.deserialize(blop);
         } catch (ClassCastException e) {
-            throw new SerializationException(e);
+            throw new CheckedSerializationException(e);
         }
     }
 

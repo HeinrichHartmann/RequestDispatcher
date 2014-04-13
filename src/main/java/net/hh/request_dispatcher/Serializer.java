@@ -1,5 +1,7 @@
 package net.hh.request_dispatcher;
 
+import org.apache.commons.lang3.SerializationException;
+
 import java.io.Serializable;
 
 /**
@@ -15,9 +17,12 @@ interface Serializer {
      * @param object
      * @return blop     encoded object.
      *
-     * @throws SerializationException if serialization fails
+     * @throws SerializationException if serialization fails.
+     *                                as this is a rare event and is caused by a programming error,
+     *                                this execption is unchecked.
+     *
      */
-    public byte[] serialize(Serializable object) throws SerializationException;
+    public byte[] serialize(Serializable object);
 
     /**
      * Create object from binary blop.
@@ -25,7 +30,8 @@ interface Serializer {
      *
      * @param blop
      * @return object
+     * @throws net.hh.request_dispatcher.CheckedSerializationException if something is not ok with the data.
      */
-    public Object deserialize(byte[] blop) throws SerializationException;
+    public Object deserialize(byte[] blop) throws CheckedSerializationException;
 
 }

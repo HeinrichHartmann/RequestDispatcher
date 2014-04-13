@@ -12,7 +12,7 @@ public final class TransferWrapper extends TransferWrapperRaw {
 
     private final Serializable object;
 
-    public TransferWrapper(Serializable object, Integer callbackId) throws SerializationException {
+    public TransferWrapper(Serializable object, Integer callbackId) throws CheckedSerializationException {
         this(object, callbackId, new ZFrame[0]);
     }
 
@@ -20,12 +20,12 @@ public final class TransferWrapper extends TransferWrapperRaw {
         super(message);
         try {
             this.object = SerializationHelper.deserialize(payload);
-        } catch (SerializationException e) {
+        } catch (CheckedSerializationException e) {
             throw new TransferHelper.ProtocolException(e);
         }
     }
 
-    TransferWrapper(Serializable object, Integer callbackId, ZFrame[] envelope) throws SerializationException {
+    TransferWrapper(Serializable object, Integer callbackId, ZFrame[] envelope)  {
         super(SerializationHelper.serialize(object), callbackId, envelope);
         this.object = object;
     }
@@ -38,7 +38,7 @@ public final class TransferWrapper extends TransferWrapperRaw {
         return object instanceof RequestException;
     }
 
-    public TransferWrapper constructReply(Serializable object) throws SerializationException {
+    public TransferWrapper constructReply(Serializable object) {
         return new TransferWrapper(object, getCallbackId(), getEnvelope());
     }
 

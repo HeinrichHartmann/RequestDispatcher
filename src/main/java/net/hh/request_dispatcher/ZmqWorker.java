@@ -118,59 +118,49 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
             ZMQ.PollItem controlPoller = new ZMQ.PollItem(controlSocket, ZMQ.Poller.POLLIN);
             poller.register(controlPoller);
 
-            // Loop variables
-            Serializable reply = null;
-
             while (!Thread.interrupted()) {
                 log.trace("Waiting for messages.");
                 poller.poll();
 
                 if (payloadPoller.isReadable()) {
                     try {
-                        TransferWrapper wrappedRequest = TransferHelper.recvMessage(workSocket,ZMQ.NOBLOCK);
-                        log.trace("Received message " + wrappedRequest);
+                        TransferWrapper request = TransferHelper.recvMessage(workSocket, 0);
 
-                        try {
-                            reply = handler.handleRequest((RequestType) wrappedRequest.getObject());
-                        } catch (Exception e) {
-                            log.warn("Catched exception. Sending back to client.", e);
-                            reply = new RequestException(e);
-                        }
+                        TransferWrapper reply = processRequest(request);
 
-                        if (wrappedRequest.isOneWayRequest()) {
-                            log.debug("Received one way request. No reply sent.");
-                            continue;
-                        }
+                        if (request.isOneWayRequest()) continue;
 
-                        log.trace("Sending message " + reply);
-                        TransferHelper.sendMessage(
-                                workSocket,
-                                wrappedRequest.constructReply(reply)
-                        );
-                    } catch (ClassCastException e) {
-                        log.error("Cannot cast request object", e);
-                        // continue with next request
-                    } catch (TransferHelper.ProtocolException | SerializationException e) {
+                        reply.toMessage().send(workSocket);
+
+                    } catch (TransferHelper.ProtocolException e) {
                         log.error(e);
-                    } catch (TransferHelper.ZmqEtermException e) {
-                        log.error(e);
-                        break;
                     }
                 } else if (controlPoller.isReadable()) {
                     String CMD = controlSocket.recvStr();
-                    log.debug("Received Command " + CMD);
-
-                    if (CMD.equals(Commands.CMD_STOP)) {
-                        break;
-                    }
+                    log.trace("Received Command " + CMD);
+                    if (CMD.equals(Commands.CMD_STOP)) break;
                 } else {
-                    log.warn("No messages received! Exiting.");
+                    log.warn("Interrupted polling.");
                     break;
                 }
             }
-        } finally {
+        } finally { // ZmqEtermExecption handeled here
             log.info("Terminating Loop closing sockets.");
             closeSockets();
+        }
+    }
+
+    private TransferWrapper processRequest(TransferWrapper requestMessage) {
+
+        try {
+            RequestType request = (RequestType) requestMessage.getObject();
+            ReplyType reply = handler.handleRequest(request);
+
+            return requestMessage.constructReply(reply);
+        } catch (ClassCastException e) {
+            return requestMessage.constructReply(new RequestException(e));
+        } catch (Exception e) {
+            return requestMessage.constructReply(new RequestException(e));
         }
     }
 

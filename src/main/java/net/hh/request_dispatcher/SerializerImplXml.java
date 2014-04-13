@@ -2,6 +2,7 @@ package net.hh.request_dispatcher;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.core.BaseException;
+import org.apache.commons.lang3.SerializationException;
 
 import java.io.Serializable;
 
@@ -15,7 +16,7 @@ class SerializerImplXml implements Serializer {
 
     private static final XStream xStream = new XStream();
 
-    public byte[] serialize(Serializable o) throws SerializationException {
+    public byte[] serialize(Serializable o) {
         try {
             return xStream.toXML(o).getBytes();
         } catch (BaseException e) {
@@ -23,11 +24,11 @@ class SerializerImplXml implements Serializer {
         }
     }
 
-    public Object deserialize(byte[] data) throws SerializationException {
+    public Object deserialize(byte[] data) throws CheckedSerializationException {
         try {
             return xStream.fromXML(new String(data));
         } catch (BaseException e) {
-            throw new SerializationException(e);
+            throw new CheckedSerializationException(e);
         }
     }
 

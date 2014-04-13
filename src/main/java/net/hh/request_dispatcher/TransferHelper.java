@@ -17,7 +17,7 @@ class TransferHelper {
 
     private static final Logger log = Logger.getLogger(TransferHelper.class);
 
-    public static void sendMessage(ZMQ.Socket socket, TransferWrapper transferWrapper) throws ZmqEtermException {
+    public static void sendMessage(ZMQ.Socket socket, TransferWrapper transferWrapper) {
         try {
             boolean rc = transferWrapper.toMessage().send(socket);
             if (!rc) throw new ZMQException.IOException(new IOException("Error sending message"));
@@ -42,7 +42,7 @@ class TransferHelper {
      * @throws ZmqEtermException    when context is closed while receiving messages
      * @throws IOException          other IOErrors (encompasses Protocol and ZmqEtermException)
      */
-    public static TransferWrapper recvMessage(ZMQ.Socket socket, int flag) throws ZmqEtermException, ProtocolException {
+    public static TransferWrapper recvMessage(ZMQ.Socket socket, int flag) throws ProtocolException {
         {
             try {
                 ZMsg message = ZMsg.recvMsg(socket, flag);
@@ -92,7 +92,7 @@ class TransferHelper {
     /**
      * thrown when context is closed on blocking recv.
      */
-    static class ZmqEtermException extends IOException {
+    static class ZmqEtermException extends RuntimeException {
         ZmqEtermException(Exception e) {
             super(e);
         }
