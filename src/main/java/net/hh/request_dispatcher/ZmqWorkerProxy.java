@@ -23,6 +23,8 @@ public class ZmqWorkerProxy {
     private final Set<ZmqWorker> managedWorkers = new HashSet<ZmqWorker>();
 
     private final ZMQ.Context ctx;
+    private final boolean isContextOwner;
+
     private final ZMQ.Socket outsideSocket;
     private final ZMQ.Socket payloadSocket;
     private final ZMQ.Socket controlSocket;
@@ -48,12 +50,28 @@ public class ZmqWorkerProxy {
      *
      * SIDE: Creates background thread with proxy loop.
      *
-     * Call shutdown() to destroy threads and workers properly.
+     * Call shutdown() to destroy threads, sockets and context properly.
      *
      * @param inputChannel    Endpoint to listen for requests.
      */
     public ZmqWorkerProxy(final String inputChannel) {
-        this.ctx = ZMQ.context(1);
+        this(inputChannel, ZMQ.context(1), true);
+    }
+
+    /**
+     * Like ZmqWorkerProxy(String inputChannel) but uses provided context.
+     *
+     * Does not terminate context on shutdown().
+     * ctx.term() need to be called manually.
+     */
+    public ZmqWorkerProxy(final ZMQ.Context ctx, final String inputChannel) {
+        this(inputChannel, ctx, false);
+    }
+
+
+    private ZmqWorkerProxy(final String inputChannel, final ZMQ.Context ctx, final boolean isContextOwner) {
+        this.ctx = ctx;
+        this.isContextOwner = isContextOwner;
 
         outsideSocket = ctx.socket(ZMQ.ROUTER);
         outsideSocket.setLinger(100);
@@ -91,9 +109,13 @@ public class ZmqWorkerProxy {
     }
 
     /**
-     * Stop all worker threads and terminates proxy loop.
+     * Stop all worker threads.
      *
      * Can only be called when threads startWorkers() has been called.
+     *
+     * If context was passed to constructor, the context is kept alive.
+     * As a consquence the proxy loop keeps running until ctx.term() is
+     * called by another thread.
      */
     public void shutdown() {
         try {
@@ -111,8 +133,10 @@ public class ZmqWorkerProxy {
             }
             controlSocket.close();
 
-            ctx.term();
-            // terminates proxy loop and closes outsideSocket and payloadSocket.
+            if (isContextOwner) {
+                // terminates proxy loop and closes outsideSocket and payloadSocket.
+                ctx.term();
+            }
 
             state = State.stopped;
 
@@ -120,16 +144,6 @@ public class ZmqWorkerProxy {
             log.error("Interrupted join", e);
             throw new IllegalStateException(e);
         }
-    }
-
-    /**
-     * The context is managed by the ProxyWorker.
-     * I.e. shutdown() calls ctx.term()
-     *
-     * @return ctx
-     */
-    public ZMQ.Context getContext() {
-        return ctx;
     }
 
     //////////////////////  SET INTERFACE IMPLEMENTATION ////////////////////////////

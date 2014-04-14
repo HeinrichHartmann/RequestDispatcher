@@ -71,7 +71,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
     /**
      * Side: Closes previously set socket.
      */
-    public void replaceWorkSocket(ZMQ.Socket socket) {
+    void replaceWorkSocket(ZMQ.Socket socket) {
         if (workSocket != null) this.workSocket.close();
         this.workSocket = socket;
     }
@@ -79,7 +79,7 @@ public class ZmqWorker<RequestType extends Serializable, ReplyType extends Seria
     /**
      * Side: Closes previously set socket.
      */
-    public void replaceControlSocket(ZMQ.Socket socket) {
+    void replaceControlSocket(ZMQ.Socket socket) {
         if (controlSocket != null) this.controlSocket.close();
         this.controlSocket = socket;
 

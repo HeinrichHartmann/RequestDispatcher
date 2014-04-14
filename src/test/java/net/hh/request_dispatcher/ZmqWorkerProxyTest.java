@@ -13,8 +13,8 @@ import java.util.Set;
 public class ZmqWorkerProxyTest {
 
     private final String inputChannel = "inproc://proxyinput";
-    private final ZmqWorkerProxy proxy = new ZmqWorkerProxy(inputChannel);
-    private final ZMQ.Context ctx = proxy.getContext();
+    private final ZMQ.Context ctx = ZMQ.context(0);
+    private final ZmqWorkerProxy proxy = new ZmqWorkerProxy(ctx, inputChannel);
 
     @Test //(timeout = 2000)
     public void testStartStop() throws Exception {
@@ -34,9 +34,10 @@ public class ZmqWorkerProxyTest {
         }
 
         proxy.startWorkers();
-
         proxy.shutdown();
 
+        // proxy does not own the context
+        ctx.term();
     }
 
     @Test // (timeout = 2000)
@@ -89,5 +90,8 @@ public class ZmqWorkerProxyTest {
         }
 
         proxy.shutdown();
+
+        // proxy does not own the context
+        ctx.term();
     }
 }
