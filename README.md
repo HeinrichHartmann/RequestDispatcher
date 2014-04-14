@@ -20,7 +20,6 @@ the creation of simple remote services.
 ### Example: id server
 
 In this example we create a remote service that creates globally unique ids.
-First we need to define some shared objects:
 
         //
         //// SHARED OBJECTS
@@ -87,6 +86,10 @@ First we need to define some shared objects:
   synchronus event loop.
 * ZMQ Network Service library. Handles socket communication and polling.
 
+![Class Diagram](https://raw.github.com/HeinrichHartmann/RequestDispatcher/master/img/ClassDiagram.png "Class Diagram")
+
+
 ### Control Flow 
 
 ![Image of control flow](https://raw.github.com/HeinrichHartmann/RequestDispatcher/master/img/DispatcherControlFlow.png "Request dispatcher control flow")
+
