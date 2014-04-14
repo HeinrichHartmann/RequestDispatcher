@@ -43,9 +43,9 @@ public class RevisedDispatcherTest {
             }
     );
 
-    public static class constReq implements Serializable {
-        public constReq() {}
-    }
+    public static class constReq implements Serializable {}
+    public static class subConstReq extends constReq {}
+    public static class subSubConstReq extends subConstReq {}
 
     private final String sleepChannel = "inproc://sleepChannel";
     private final ZmqWorker sleepWorker = new ZmqWorker<sleepReq, String>(
@@ -111,6 +111,19 @@ public class RevisedDispatcherTest {
         Assert.assertEquals("TOUT", returnCodes[0]);
     }
 
+
+    @Test
+    public void testSubClassDispatching() throws Exception {
+        Assert.assertEquals(CONST, (String) dp.executeSync(new subConstReq()));
+        Assert.assertEquals(CONST, (String) dp.executeSync(new subSubConstReq()));
+    }
+
+    public class noService implements Serializable {};
+
+    @Test(expected = IllegalStateException.class)
+    public void testNoRegisteredService() throws Exception {
+        dp.executeSync(new noService());
+    }
 
     private final String [] returnCodes = new String[10];
     private final String [] replies = new String[10];

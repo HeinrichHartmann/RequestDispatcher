@@ -55,13 +55,9 @@ public class Dispatcher {
      * @param callback  that handles the response. Executed on gatherResults()
      */
     public void execute(final Serializable request, final Callback callback) {
-        log.debug("Dispatching request of type " + request.getClass());
+        log.debug("Dispatching async request of type " + request.getClass());
 
-        if (! asyncAdapters.containsKey(request.getClass())) {
-            throw new IllegalStateException("No adapter registered for class " + request.getClass());
-        }
-
-        asyncAdapters.get(request.getClass()).execute(request, callback);
+        getAsyncAdapter(request.getClass()).execute(request, callback);
     }
 
     /**
@@ -72,11 +68,8 @@ public class Dispatcher {
      * @throws java.lang.IllegalStateException if no sericve is registered for request class.
      */
     public Serializable executeSync(final Serializable request, int timeout) throws TimeoutException, RequestException {
-        if (! syncAdapters.containsKey(request.getClass())) {
-            throw new IllegalStateException("No adapter registered for class " + request.getClass());
-        }
-
-        return syncAdapters.get(request.getClass()).sendSync(request, timeout);
+        log.debug("Dispatching sync request of type " + request.getClass());
+        return getSyncAdapter(request.getClass()).sendSync(request, timeout);
     }
 
     /**
@@ -144,27 +137,6 @@ public class Dispatcher {
     }
 
     /**
-     * @return true if one or more callbacks are pending.
-     */
-    private boolean havePendingCallbacks() {
-        for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
-            if (zmqAdapterAsync.hasPendingCallbacks()) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Call timeout() methods of all asyncAdapters.
-     */
-    private void timeoutAll() {
-        for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
-            zmqAdapterAsync.timeout();
-        }
-    }
-
-    //// OTHER
-
-    /**
      * Manage coordinated shutdown of all sockets.
      *
      * If context was constructed by the Dispatcher. The context is also terminated.
@@ -184,7 +156,54 @@ public class Dispatcher {
 
     }
 
-    //// HELPER
+    //// PRIVATE HELPER METHODS
+
+    /**
+     * @param requestClass
+     * @return asyncAdapter          registered adapter
+     * @throws IllegalStateException if no adapter is found for the class.
+     */
+    private ZmqAdapterAsync getAsyncAdapter(Class<? extends Serializable> requestClass) {
+        for(Class cur = requestClass; cur != null ; cur = cur.getSuperclass()) {
+            if (asyncAdapters.containsKey(cur)) {
+                return asyncAdapters.get(cur);
+            }
+        }
+        throw new IllegalStateException("No adapter registered for class " + requestClass);
+    }
+
+    /**
+     * @param requestClass
+     * @return asyncAdapter          registered adapter
+     * @throws IllegalStateException if no adapter is found for the class.
+     */
+    private ZmqAdapterSync getSyncAdapter(Class<? extends Serializable> requestClass) {
+        for(Class cur = requestClass; cur != null ; cur = cur.getSuperclass()) {
+            if (syncAdapters.containsKey(cur)) {
+                return syncAdapters.get(cur);
+            }
+        }
+        throw new IllegalStateException("No adapter registered for class " + requestClass);
+    }
+
+    /**
+     * @return true if one or more callbacks are pending.
+     */
+    private boolean havePendingCallbacks() {
+        for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
+            if (zmqAdapterAsync.hasPendingCallbacks()) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Call timeout() methods of all asyncAdapters.
+     */
+    private void timeoutAll() {
+        for (ZmqAdapterAsync zmqAdapterAsync : asyncAdapters.values()) {
+            zmqAdapterAsync.timeout();
+        }
+    }
 
     private class CountdownTimer {
         long start_time;
